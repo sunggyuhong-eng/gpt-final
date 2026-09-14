@@ -1,0 +1,20 @@
+# Change approved to true only after reviewing the source's current terms.
+sources:
+  게임잡:
+    approved: false
+    note: "현행 이용약관상 무단 복제·가공 제한 확인. 서면 사용 허가 전 활성화 금지"
+  게임메카:
+    approved: false
+    note: "robots.txt 기술 확인 완료, 이용약관 수동 검토 필요"
+  인벤:
+    approved: false
+    note: "robots.txt 기술 확인 완료, 이용약관 수동 검토 필요"
+  디스이즈게임:
+    approved: false
+    note: "robots.txt 기술 확인 완료, 이용약관 수동 검토 필요"
+  게임잡 업계뉴스:
+    approved: false
+    note: "robots.txt 기술 확인 완료, 이용약관 수동 검토 필요"
+  PLUDI:
+    approved: false
+    note: "robots.txt 기술 확인 완료, 이용약관 수동 검토 필요"
