@@ -64,7 +64,7 @@ function Dashboard({ data }: { data: Data }) {
   return <section className="dashboard">
     <div className="hero">
       <div className="hero-copy"><span className="eyebrow"><Sparkles size={14} /> GAME INDUSTRY TALENT SIGNAL</span><h1>게임업계 채용 흐름,<br /><em>쉽고 빠르게</em> 확인하세요</h1><p>게임잡의 공개 채용공고를 매일 모아 회사와 직무의 변화를 한눈에 보여드려요.</p><div className="hero-actions"><NavLink className="primary-button" to="/jobs">채용공고 살펴보기 <ArrowUpRight size={18} /></NavLink><span><CheckCircle2 size={16} /> 실제 수집 데이터</span></div></div>
-      <div className="hero-visual"><div className="pulse-card"><span>현재 채용 중</span><strong>{jobs.length.toLocaleString()}</strong><small>개의 게임업계 공고</small><div className="pulse-line"><i /><i /><i /><i /><i /><i /><i /></div><p><span /> 매일 오전 9시 15분 업데이트</p></div><div className="floating-stat"><TrendingUp size={19} /><div><b>{topCategory?.name || '분류 없음'}</b><span>가장 많이 찾는 직무</span></div></div></div>
+      <div className="hero-visual"><div className="pulse-card"><span>현재 채용 중</span><strong>{jobs.length.toLocaleString()}</strong><small>개의 게임업계 공고</small><div className="pulse-line"><i /><i /><i /><i /><i /><i /><i /></div><p><span /> 매일 오전 9시 업데이트</p></div><div className="floating-stat"><TrendingUp size={19} /><div><b>{topCategory?.name || '분류 없음'}</b><span>가장 많이 찾는 직무</span></div></div></div>
     </div>
 
     <div className="status-strip"><div><CheckCircle2 size={18} /><b>{data.status.success ? '데이터가 최신 상태예요' : '수집 상태를 확인해 주세요'}</b></div><span>{data.status.message || `마지막 정상 수집 ${formatDate(data.snapshot.collected_at)}`}</span></div>
