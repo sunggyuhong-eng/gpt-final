@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import json
 import logging
 import re
 from datetime import datetime, timezone
+from pathlib import Path
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
@@ -19,20 +21,39 @@ class GameJobAdapter(Adapter):
 
     name = "게임잡"
     list_url = "https://www.gamejob.co.kr/Recruit/joblist?menucode=searchdetail"
-    page_url = "https://www.gamejob.co.kr/recruit/_GI_Job_List?Page={page}"
+    page_url = "https://www.gamejob.co.kr/Recruit/_GI_Job_List/"
     max_pages = 200
+    profile_cache_path = Path(__file__).resolve().parents[2] / "data" / "company-profiles.json"
 
     def collect(self, enrich_companies: bool = False) -> list[JobPosting]:
         jobs: list[JobPosting] = []
         by_id: dict[str, JobPosting] = {}
         for page in range(1, self.max_pages + 1):
-            response = self.client.get(self.list_url if page == 1 else self.page_url.format(page=page))
+            if page == 1:
+                response = self.client.get(self.list_url)
+            else:
+                response = self.client.post(
+                    self.page_url,
+                    data={
+                        "condition[menucode]": "searchdetail",
+                        "page": str(page),
+                        "direct": "0",
+                        "order": "1",
+                        "pagesize": "40",
+                        "tabcode": "1",
+                    },
+                    headers={
+                        "Referer": self.list_url,
+                        "X-Requested-With": "XMLHttpRequest",
+                    },
+                )
             soup = BeautifulSoup(response.text, "html.parser")
             rows = soup.select("table.tblList tbody tr")
             if not rows:
                 if page == 1:
                     raise RuntimeError("게임잡 목록 선택자와 일치하는 공고가 없습니다. collector/adapters/gamejob.py를 점검하세요.")
                 break
+            LOG.info("게임잡 목록 %s페이지: %s개 행", page, len(rows))
             new_on_page = 0
             for row in rows:
                 link = row.select_one(".tit a[href*='GI_No']")
@@ -101,19 +122,43 @@ class GameJobAdapter(Adapter):
         return GameJobAdapter._listing_date(value)
 
     def _enrich_company_profiles(self, jobs: list[JobPosting]) -> None:
-        profiles: dict[str, dict[str, str | None]] = {}
+        profiles = self._load_profile_cache()
+        total = len({job.company_url for job in jobs if job.company_url})
+        fetched = 0
         for job in jobs:
             if not job.company_url:
                 continue
             if job.company_url not in profiles:
                 try:
                     profiles[job.company_url] = self._company_profile(job.company_url)
+                    fetched += 1
+                    self._save_profile_cache(profiles)
+                    if fetched % 25 == 0:
+                        LOG.info("새 기업정보 수집: %s개 (전체 대상 %s개)", fetched, total)
                 except Exception as exc:
                     LOG.warning("기업정보 수집 실패: %s (%s)", job.company_url, exc)
                     profiles[job.company_url] = {}
             profile = profiles[job.company_url]
             for field in ("logo_url", "representative_game", "company_type", "main_business", "established_year", "employee_count"):
                 setattr(job, field, profile.get(field))
+
+        LOG.info("기업정보 적용: %s개 대상, 신규 수집 %s개", total, fetched)
+
+    def _load_profile_cache(self) -> dict[str, dict[str, str | None]]:
+        if not self.profile_cache_path.exists():
+            return {}
+        try:
+            data = json.loads(self.profile_cache_path.read_text(encoding="utf-8"))
+            return data if isinstance(data, dict) else {}
+        except (OSError, json.JSONDecodeError) as exc:
+            LOG.warning("기업정보 캐시 읽기 실패: %s", exc)
+            return {}
+
+    def _save_profile_cache(self, profiles: dict[str, dict[str, str | None]]) -> None:
+        self.profile_cache_path.parent.mkdir(parents=True, exist_ok=True)
+        temp_path = self.profile_cache_path.with_suffix(".tmp")
+        temp_path.write_text(json.dumps(profiles, ensure_ascii=False, indent=2), encoding="utf-8")
+        temp_path.replace(self.profile_cache_path)
 
     def _company_profile(self, url: str) -> dict[str, str | None]:
         response = self.client.get(url)

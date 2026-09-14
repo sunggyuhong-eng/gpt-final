@@ -201,7 +201,8 @@ def run(mode: str = "daily", force: bool = False, now: datetime | None = None) -
             monthly = dict(snapshot, period=month)
             write_json(monthly_path, monthly)
             prev_path = previous_month_file(month)
-            previous = read_json(prev_path, {}).get("jobs") if prev_path else None
+            previous_snapshot = read_json(prev_path, {}) if prev_path else {}
+            previous = None if previous_snapshot.get("is_sample") else previous_snapshot.get("jobs")
             stats = compare(jobs, previous)
             write_json(ROOT / "data" / "reports" / f"{month}.json", {"period": month, "is_sample": False, "status": "analysis_pending", "statistics": stats, "news": news})
             update_history(month, stats)
@@ -212,6 +213,8 @@ def run(mode: str = "daily", force: bool = False, now: datetime | None = None) -
 def update_history(month: str, stats: dict) -> None:
     path = ROOT / "data" / "history-summary.json"
     data = read_json(path, {"months": []})
+    if data.get("is_sample"):
+        data = {"is_sample": False, "months": []}
     row = {"month": month, "total_open": stats["total_open"], "new_count": stats["new_count"], "closed_count": stats["closed_count"]}
     data["months"] = [x for x in data.get("months", []) if x["month"] != month] + [row]
     data["months"].sort(key=lambda x: x["month"])

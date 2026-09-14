@@ -1,2 +1,43 @@
-{"is_sample":true,"success":true,"started_at":"2026-09-01T09:00:00+09:00","finished_at":"2026-09-01T09:05:00+09:00","message":"예시 데이터가 표시되고 있습니다.","sources":[{"name":"게임잡","status":"sample","count":10},{"name":"뉴스 매체","status":"sample","count":3}]}
-
+{
+  "started_at": "2026-09-14T11:10:56.487137+09:00",
+  "sources": [
+    {
+      "name": "게임잡",
+      "status": "success",
+      "count": 1575
+    },
+    {
+      "name": "게임메카",
+      "status": "disabled",
+      "count": 0,
+      "error": "robots.txt 기술 확인 완료, 이용약관 수동 검토 필요"
+    },
+    {
+      "name": "인벤",
+      "status": "disabled",
+      "count": 0,
+      "error": "robots.txt 기술 확인 완료, 이용약관 수동 검토 필요"
+    },
+    {
+      "name": "디스이즈게임",
+      "status": "disabled",
+      "count": 0,
+      "error": "robots.txt 기술 확인 완료, 이용약관 수동 검토 필요"
+    },
+    {
+      "name": "게임잡 업계뉴스",
+      "status": "disabled",
+      "count": 0,
+      "error": "robots.txt 기술 확인 완료, 이용약관 수동 검토 필요"
+    },
+    {
+      "name": "PLUDI",
+      "status": "disabled",
+      "count": 0,
+      "error": "robots.txt 기술 확인 완료, 이용약관 수동 검토 필요"
+    }
+  ],
+  "is_sample": false,
+  "finished_at": "2026-09-14T11:12:48.320799+09:00",
+  "success": true
+}

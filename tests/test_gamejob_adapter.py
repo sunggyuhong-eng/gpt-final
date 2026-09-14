@@ -12,14 +12,16 @@ class FakeClient:
 
     def get(self, _url):
         self.calls += 1
-        if self.calls == 1:
-            return Response("""
+        return Response("""
             <table class="tblList"><tbody>
               <tr><td><div class="company"><a href="/Company/Detail?M=1"><strong>(주)넥슨코리아</strong></a></div></td>
               <td><div class="tit"><a href="/Recruit/GI_Read/View?GI_No=101" onclick="x(IsNullOrWhiteSpace('게임제작, 서버'))"><strong>서버 개발자</strong></a>
               <p class="info"><span>경력3년↑</span><span>학력무관</span><span>서울 &gt; 강남구</span><span>온라인PC게임</span><span>정규직</span></p></div></td>
               <td><span class="date">~09/30</span><span class="modifyDate">09/01 등록</span></td></tr>
             </tbody></table>""")
+
+    def post(self, _url, **_kwargs):
+        self.calls += 1
         return Response("<html><body>끝</body></html>")
 
 

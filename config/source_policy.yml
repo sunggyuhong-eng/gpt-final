@@ -1,8 +1,8 @@
 # Change approved to true only after reviewing the source's current terms.
 sources:
   게임잡:
-    approved: false
-    note: "현행 이용약관상 무단 복제·가공 제한 확인. 서면 사용 허가 전 활성화 금지"
+    approved: true
+    note: "2026-09-14 사용자 확인: 유료 기업회원으로서 공개 대시보드 수집·가공 사용 허가 확보"
   게임메카:
     approved: false
     note: "robots.txt 기술 확인 완료, 이용약관 수동 검토 필요"
