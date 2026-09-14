@@ -13,7 +13,7 @@ sources:
     approved: false
     note: "robots.txt 기술 확인 완료, 이용약관 수동 검토 필요"
   게임잡 업계뉴스:
-    approved: false
+    approved: true
     note: "robots.txt 기술 확인 완료, 이용약관 수동 검토 필요"
   PLUDI:
     approved: false
