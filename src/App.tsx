@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import { NavLink, Route, Routes, useSearchParams } from 'react-router-dom'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { BarChart3, BriefcaseBusiness, Building2, FileText, LayoutDashboard, Newspaper, Search, ExternalLink } from 'lucide-react'
+import {
+  ArrowUpRight, BarChart3, BriefcaseBusiness, Building2, CalendarDays,
+  CheckCircle2, ChevronRight, Clock3, ExternalLink, FileText, LayoutDashboard,
+  MapPin, Newspaper, Search, Sparkles, TrendingUp, UsersRound,
+} from 'lucide-react'
 import { loadAll } from './data'
 import type { History, Job, News, Report, Snapshot, Status } from './types'
 
-type Data = {snapshot:Snapshot;history:History;report:Report;status:Status}
+type Data = { snapshot: Snapshot; history: History; report: Report; status: Status }
 const nav = [
   ['/', '대시보드', LayoutDashboard], ['/jobs', '채용공고', BriefcaseBusiness],
   ['/categories', '직무별', BarChart3], ['/companies', '회사별', Building2],
@@ -13,64 +17,206 @@ const nav = [
 ] as const
 
 export default function App() {
-  const [data,setData] = useState<Data|null>(null), [error,setError] = useState('')
-  useEffect(()=>{ loadAll().then(setData).catch(e=>setError(e.message)) },[])
-  if(error) return <Empty title="데이터를 불러오지 못했습니다" text={error}/>
-  if(!data) return <div className="loader">데이터를 불러오는 중…</div>
-  return <div className="app"><Header data={data}/><main><Routes><Route path="/" element={<Dashboard data={data}/>}/><Route path="/jobs" element={<Jobs jobs={data.snapshot.jobs}/>}/><Route path="/categories" element={<Categories data={data}/>}/><Route path="/companies" element={<Companies data={data}/>}/><Route path="/news" element={<NewsPage news={data.snapshot.news}/>}/><Route path="/reports" element={<Reports report={data.report}/>}/></Routes></main><nav className="mobile-nav">{nav.map(([to,label,Icon])=><NavLink key={to} to={to} end={to==='/'}><Icon size={19}/>{label}</NavLink>)}</nav></div>
+  const [data, setData] = useState<Data | null>(null)
+  const [error, setError] = useState('')
+  useEffect(() => { loadAll().then(setData).catch((e: Error) => setError(e.message)) }, [])
+  if (error) return <Empty title="데이터를 불러오지 못했어요" text={error} />
+  if (!data) return <div className="loader"><span /><b>채용 데이터를 불러오는 중이에요</b></div>
+  return <div className="app">
+    <Header data={data} />
+    <main>
+      <Routes>
+        <Route path="/" element={<Dashboard data={data} />} />
+        <Route path="/jobs" element={<Jobs jobs={data.snapshot.jobs} />} />
+        <Route path="/categories" element={<Categories data={data} />} />
+        <Route path="/companies" element={<Companies data={data} />} />
+        <Route path="/news" element={<NewsPage news={data.snapshot.news} />} />
+        <Route path="/reports" element={<Reports report={data.report} />} />
+      </Routes>
+    </main>
+    <MobileNav />
+  </div>
 }
 
-function Header({data}:{data:Data}) { return <header className="topbar"><div className="topbar-inner"><NavLink className="brand" to="/"><span>G</span><div>Game Hiring<small>RADAR</small></div></NavLink><nav className="desktop-nav">{nav.map(([to,label,Icon])=><NavLink key={to} to={to} end={to==='/'}><Icon size={17}/>{label}</NavLink>)}</nav><div className="freshness"><i className={data.status.success?'ok':''}/><span>{new Date(data.snapshot.collected_at).toLocaleDateString('ko-KR')} 기준</span>{data.snapshot.is_sample&&<b>예시</b>}</div></div></header> }
-
-function Dashboard({data}:{data:Data}) {
-  const jobs=data.snapshot.jobs, companies=new Set(jobs.map(j=>j.company)).size
-  const cats=countCategories(jobs), top=cats[0]?.name??'없음', s=data.report.statistics
-  const companyRanks=Object.entries(groupBy(jobs,j=>j.company)).map(([name,list])=>({name,count:list.length,game:list[0].representative_game})).sort((a,b)=>b.count-a.count)
-  return <section className="dashboard"><div className="hero"><div><span className="eyebrow">GAME INDUSTRY TALENT SIGNAL</span><h1>게임업계 채용 흐름을<br/>한눈에 확인하세요</h1><p>회사와 직무를 비교하고 공고 변화를 매일 추적합니다.</p></div><NavLink className="hero-search" to="/jobs"><Search size={21}/><span>회사명, 직무, 공고를 검색하세요</span><kbd>검색</kbd></NavLink></div><div className="notice">{data.status.message || '정상 수집된 최신 데이터를 표시합니다.'}</div><div className="kpis"><Kpi label="현재 오픈 공고" value={`${jobs.length.toLocaleString()}건`} sub={`전월 대비 ${fmtChange(s.change)}`}/><Kpi label="신규 공고" value={`${s.new_count ?? '-'}건`} sub="이번 공식 스냅샷"/><Kpi label="종료 공고" value={`${s.closed_count ?? '-'}건`} sub="전월 공고 기준"/><Kpi label="채용 중인 회사" value={`${companies}개`} sub="중복 회사 제거"/><Kpi label="최다 채용 직무" value={top} sub={`${cats[0]?.count??0}건`}/></div><div className="grid insight-grid"><Panel title="월별 오픈 공고 추이"><Trend history={data.history}/></Panel><Panel title="채용 회사 TOP 10"><RankList rows={companyRanks.slice(0,10)} to="/companies"/></Panel><Panel title="직무 TOP 10"><RankList rows={cats.slice(0,10)} to="/categories"/></Panel></div><Panel title="최근 등록된 공고"><JobTable jobs={[...jobs].sort((a,b)=>(b.posted_at||'').localeCompare(a.posted_at||'')).slice(0,8)}/></Panel></section>
+function Header({ data }: { data: Data }) {
+  return <header className="topbar"><div className="topbar-inner">
+    <NavLink className="brand" to="/"><span>G</span><div>Game Hiring<small>RADAR</small></div></NavLink>
+    <nav className="desktop-nav">{nav.map(([to, label]) => <NavLink key={to} to={to} end={to === '/'}>{label}</NavLink>)}</nav>
+    <div className="freshness"><i className={data.status.success ? 'ok' : ''} /><span>{formatDate(data.snapshot.collected_at)} 기준</span>{data.snapshot.is_sample && <b>예시</b>}</div>
+  </div></header>
 }
 
-function Jobs({jobs}:{jobs:Job[]}) {
-  const [q,setQ]=useState(''), [company,setCompany]=useState(''), [category,setCategory]=useState(''), [career,setCareer]=useState(''), [location,setLocation]=useState(''), [employment,setEmployment]=useState('')
-  const list=useMemo(()=>jobs.filter(j=>(!q||`${j.title} ${j.company}`.toLowerCase().includes(q.toLowerCase()))&&(!company||j.company===company)&&(!category||j.categories.includes(category))&&(!career||j.career===career)&&(!location||j.location===location)&&(!employment||j.employment_type===employment)).sort((a,b)=>(b.posted_at||'').localeCompare(a.posted_at||'')),[jobs,q,company,category,career,location,employment])
-  return <section><div className="page-title"><div><h2>채용공고</h2><p>{list.length}개의 공고를 찾았습니다.</p></div></div><div className="filters"><label className="search"><Search size={17}/><input value={q} onChange={e=>setQ(e.target.value)} placeholder="회사명 또는 공고 검색"/></label><Select value={company} set={setCompany} label="전체 회사" values={jobs.map(j=>j.company)}/><Select value={category} set={setCategory} label="전체 직무" values={jobs.flatMap(j=>j.categories)}/><Select value={career} set={setCareer} label="전체 경력" values={jobs.map(j=>j.career)}/><Select value={location} set={setLocation} label="전체 지역" values={jobs.map(j=>j.location)}/><Select value={employment} set={setEmployment} label="전체 고용형태" values={jobs.map(j=>j.employment_type)}/></div>{list.length?<Panel><JobTable jobs={list}/></Panel>:<Empty title="조건에 맞는 공고가 없습니다" text="필터를 변경해 주세요."/>}</section>
+function MobileNav() {
+  return <nav className="mobile-nav">{nav.map(([to, label, Icon]) => <NavLink key={to} to={to} end={to === '/'}><Icon size={20} /><span>{label}</span></NavLink>)}</nav>
 }
 
-function Categories({data}:{data:Data}) {
-  const [params,setParams]=useSearchParams(), selected=params.get('category')||''; const counts=countCategories(data.snapshot.jobs)
-  const jobs=selected?data.snapshot.jobs.filter(j=>j.categories.includes(selected)):[]
-  return <section><div className="page-title"><div><h2>직무별 분석</h2><p>직무를 선택하면 관련 공고를 확인할 수 있습니다.</p></div></div><div className="category-grid">{counts.map(x=><button className={selected===x.name?'active':''} onClick={()=>setParams({category:x.name})} key={x.name}><span>{x.name}</span><b>{x.count}</b><small>공고</small></button>)}</div><div className="grid two"><Panel title="월별 전체 채용 추이"><Trend history={data.history}/></Panel><Panel title="직무별 현재 비중"><div className="bars">{counts.map(x=><div key={x.name}><span>{x.name}</span><i style={{width:`${x.count/(counts[0]?.count||1)*100}%`}}/><b>{x.count}</b></div>)}</div></Panel></div>{selected&&<Panel title={`${selected} 공고`}><JobTable jobs={jobs}/></Panel>}</section>
+function Dashboard({ data }: { data: Data }) {
+  const jobs = data.snapshot.jobs
+  const companies = new Set(jobs.map(j => j.company)).size
+  const categories = countCategories(jobs)
+  const topCategory = categories[0]
+  const stats = data.report.statistics
+  const companyRanks = Object.entries(groupBy(jobs, j => j.company))
+    .map(([name, list]) => ({ name, count: list.length, description: list[0].representative_game }))
+    .sort((a, b) => b.count - a.count)
+  const recentJobs = [...jobs].sort((a, b) => (b.posted_at || '').localeCompare(a.posted_at || '')).slice(0, 6)
+
+  return <section className="dashboard">
+    <div className="hero">
+      <div className="hero-copy"><span className="eyebrow"><Sparkles size={14} /> GAME INDUSTRY TALENT SIGNAL</span><h1>게임업계 채용 흐름,<br /><em>쉽고 빠르게</em> 확인하세요</h1><p>게임잡의 공개 채용공고를 매일 모아 회사와 직무의 변화를 한눈에 보여드려요.</p><div className="hero-actions"><NavLink className="primary-button" to="/jobs">채용공고 살펴보기 <ArrowUpRight size={18} /></NavLink><span><CheckCircle2 size={16} /> 실제 수집 데이터</span></div></div>
+      <div className="hero-visual"><div className="pulse-card"><span>현재 채용 중</span><strong>{jobs.length.toLocaleString()}</strong><small>개의 게임업계 공고</small><div className="pulse-line"><i /><i /><i /><i /><i /><i /><i /></div><p><span /> 매일 오전 9시 15분 업데이트</p></div><div className="floating-stat"><TrendingUp size={19} /><div><b>{topCategory?.name || '분류 없음'}</b><span>가장 많이 찾는 직무</span></div></div></div>
+    </div>
+
+    <div className="status-strip"><div><CheckCircle2 size={18} /><b>{data.status.success ? '데이터가 최신 상태예요' : '수집 상태를 확인해 주세요'}</b></div><span>{data.status.message || `마지막 정상 수집 ${formatDate(data.snapshot.collected_at)}`}</span></div>
+
+    <div className="section-heading"><div><span>MARKET SNAPSHOT</span><h2>지금 채용시장을 숫자로 볼까요?</h2></div><p>동일 공고는 고유번호를 기준으로 한 번만 집계해요.</p></div>
+    <div className="kpis">
+      <Kpi icon={BriefcaseBusiness} label="현재 오픈 공고" value={`${jobs.length.toLocaleString()}건`} sub={`전월 대비 ${fmtChange(stats.change)}`} primary />
+      <Kpi icon={Sparkles} label="신규 공고" value={`${stats.new_count ?? '-'}건`} sub="이번 공식 스냅샷" />
+      <Kpi icon={Clock3} label="종료 공고" value={`${stats.closed_count ?? '-'}건`} sub="전월 공고 기준" />
+      <Kpi icon={UsersRound} label="채용 중인 회사" value={`${companies.toLocaleString()}개`} sub="회사명 중복 제거" />
+      <Kpi icon={BarChart3} label="최다 채용 직무" value={topCategory?.name || '-'} sub={`${topCategory?.count.toLocaleString() || 0}건`} />
+    </div>
+
+    <div className="dashboard-grid">
+      <Panel className="trend-panel" eyebrow="MONTHLY TREND" title="월별 오픈 공고 추이"><Trend history={data.history} /></Panel>
+      <Panel eyebrow="TOP COMPANIES" title="채용이 활발한 회사"><RankList rows={companyRanks.slice(0, 8)} to="/companies" /></Panel>
+      <Panel eyebrow="TOP JOBS" title="수요가 높은 직무"><RankList rows={categories.slice(0, 8)} to="/categories" /></Panel>
+    </div>
+
+    <div className="section-heading compact"><div><span>NEW OPENINGS</span><h2>최근 등록된 공고</h2></div><NavLink to="/jobs">전체 공고 보기 <ChevronRight size={17} /></NavLink></div>
+    <JobCards jobs={recentJobs} />
+  </section>
 }
 
-function Companies({data}:{data:Data}) {
-  const companies=Object.entries(groupBy(data.snapshot.jobs,j=>j.company)).sort((a,b)=>b[1].length-a[1].length)
-  const [selected,setSelected]=useState(companies[0]?.[0]||''); const jobs=companies.find(x=>x[0]===selected)?.[1]||[]
-  const profile={...sampleProfiles[selected],...jobs[0]}
-  return <section><div className="page-title"><div><h2>회사별 분석</h2><p>회사를 선택하면 기업정보와 진행 중인 공고가 함께 표시됩니다.</p></div></div><div className="company-layout"><div className="company-grid">{companies.map(([name,items])=><button onClick={()=>setSelected(name)} className={name===selected?'active':''} key={name}><Logo name={name} url={items[0].logo_url}/><div><b>{name}</b><span>{items[0].representative_game||'대표게임 미확인'}</span></div><strong>{items.length}</strong></button>)}</div>{selected&&<div className="company-detail"><div className="company-hero"><Logo name={selected} url={profile?.logo_url||null}/><div><span>기업정보</span><h2>{selected}</h2><p>{profile?.representative_game||'대표게임 정보 없음'}</p></div>{profile?.company_url&&<a href={profile.company_url} target="_blank" rel="noreferrer">게임잡 기업정보 <ExternalLink size={15}/></a>}</div><div className="profile-grid"><Profile label="기업형태" value={profile?.company_type}/><Profile label="대표게임" value={profile?.representative_game}/><Profile label="설립연도" value={profile?.established_year}/><Profile label="사원수" value={profile?.employee_count}/><Profile wide label="주요사업" value={profile?.main_business}/></div><h3>진행 중인 공고 <b>{jobs.length}</b></h3><JobTable jobs={jobs}/><h3>관련 뉴스</h3><NewsList news={data.snapshot.news.filter(n=>n.related_companies?.includes(selected))}/></div>}</div></section>
+function Jobs({ jobs }: { jobs: Job[] }) {
+  const [q, setQ] = useState(''), [company, setCompany] = useState(''), [category, setCategory] = useState('')
+  const [career, setCareer] = useState(''), [location, setLocation] = useState(''), [employment, setEmployment] = useState('')
+  const [sort, setSort] = useState('latest'), [visible, setVisible] = useState(40)
+  const list = useMemo(() => jobs.filter(j =>
+    (!q || `${j.title} ${j.company} ${j.categories.join(' ')}`.toLowerCase().includes(q.toLowerCase())) &&
+    (!company || j.company === company) && (!category || j.categories.includes(category)) &&
+    (!career || j.career === career) && (!location || j.location === location) &&
+    (!employment || j.employment_type === employment)
+  ).sort((a, b) => sort === 'deadline'
+    ? (a.deadline || '9999').localeCompare(b.deadline || '9999')
+    : (b.posted_at || '').localeCompare(a.posted_at || '')), [jobs, q, company, category, career, location, employment, sort])
+
+  useEffect(() => setVisible(40), [q, company, category, career, location, employment, sort])
+  const clear = () => { setQ(''); setCompany(''); setCategory(''); setCareer(''); setLocation(''); setEmployment('') }
+  const hasFilter = Boolean(q || company || category || career || location || employment)
+  return <section>
+    <PageTitle eyebrow="OPEN POSITIONS" title="채용공고" description="원하는 회사와 직무를 빠르게 찾아보세요." count={list.length} />
+    <div className="filter-card"><label className="search-box"><Search size={20} /><input value={q} onChange={e => setQ(e.target.value)} placeholder="회사명, 공고명 또는 직무 검색" /></label><div className="filter-row"><Select value={company} set={setCompany} label="전체 회사" values={jobs.map(j => j.company)} /><Select value={category} set={setCategory} label="전체 직무" values={jobs.flatMap(j => j.categories)} /><Select value={career} set={setCareer} label="전체 경력" values={jobs.map(j => j.career)} /><Select value={location} set={setLocation} label="전체 지역" values={jobs.map(j => j.location)} /><Select value={employment} set={setEmployment} label="전체 고용형태" values={jobs.map(j => j.employment_type)} /><select value={sort} onChange={e => setSort(e.target.value)}><option value="latest">최신 등록순</option><option value="deadline">마감 임박순</option></select>{hasFilter && <button className="text-button" onClick={clear}>필터 초기화</button>}</div></div>
+    <div className="result-head"><b>{list.length.toLocaleString()}개의 공고</b><span>공고 제목을 누르면 게임잡 원문으로 이동해요.</span></div>
+    {list.length ? <><JobCards jobs={list.slice(0, visible)} detailed />{visible < list.length && <button className="more-button" onClick={() => setVisible(v => v + 40)}>공고 더 보기 <span>{Math.min(40, list.length - visible)}개</span></button>}</> : <Empty title="조건에 맞는 공고가 없어요" text="검색어나 필터를 변경해 보세요." />}
+  </section>
 }
 
-function NewsPage({news}:{news:News[]}) { const [source,setSource]=useState(''),[issue,setIssue]=useState(''); const list=news.filter(n=>(!source||n.source===source)&&(!issue||n.issue_type===issue)); return <section><div className="page-title"><div><h2>업계 뉴스</h2><p>기사 전문이 아닌 제목·짧은 요약·원문 링크만 제공합니다.</p></div></div><div className="filters"><Select value={source} set={setSource} label="전체 매체" values={news.map(n=>n.source)}/><Select value={issue} set={setIssue} label="전체 이슈" values={news.map(n=>n.issue_type)}/></div><Panel><NewsList news={list}/></Panel></section> }
-
-function Reports({report}:{report:Report}) { return <section><div className="page-title"><div><h2>월간 리포트</h2><p>{report.period} · {report.status==='complete'?'생성 완료':'생성 대기'}</p></div><a className="download" href={`reports/${report.period}.md`} download>Markdown 다운로드</a></div>{report.is_sample&&<div className="notice warning">아래 내용은 화면 검증용 예시 리포트입니다.</div>}{report.markdown?<Panel><article className="report">{report.markdown.split('\n').map((line,i)=>line.startsWith('# ')?<h2 key={i}>{line.slice(2)}</h2>:line.startsWith('## ')?<h3 key={i}>{line.slice(3)}</h3>:line.startsWith('> ')?<blockquote key={i}>{line.slice(2)}</blockquote>:<p key={i}>{line}</p>)}</article></Panel>:<Empty title="AI 리포트 생성 대기" text={report.error||'분석 결과가 아직 없습니다.'}/>}</section> }
-
-function Kpi({label,value,sub}:{label:string;value:string;sub:string}){return <div className="kpi"><span>{label}</span><strong>{value}</strong><small>{sub}</small></div>}
-function RankList({rows,to}:{rows:{name:string;count:number}[];to:string}){return <div className="rank-list">{rows.map((row,i)=><NavLink to={to} key={row.name}><em>{i+1}</em><span>{row.name}</span><b>{row.count.toLocaleString()}건</b></NavLink>)}</div>}
-function Profile({label,value,wide=false}:{label:string;value?:string|null;wide?:boolean}){return <div className={wide?'wide':''}><span>{label}</span><b>{value||'정보 없음'}</b></div>}
-function Panel({title,children}:{title?:string;children:React.ReactNode}){return <div className="panel">{title&&<h3>{title}</h3>}{children}</div>}
-function Trend({history}:{history:History}){return <div className="chart"><ResponsiveContainer width="100%" height="100%"><AreaChart data={history.months}><defs><linearGradient id="fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#3182f6" stopOpacity={.25}/><stop offset="1" stopColor="#3182f6" stopOpacity={0}/></linearGradient></defs><CartesianGrid stroke="#eef1f4" vertical={false}/><XAxis dataKey="month" tickLine={false} axisLine={false}/><YAxis tickLine={false} axisLine={false}/><Tooltip/><Area type="monotone" dataKey="total_open" stroke="#3182f6" strokeWidth={3} fill="url(#fill)"/></AreaChart></ResponsiveContainer></div>}
-function JobTable({jobs}:{jobs:Job[]}){return <div className="table-wrap"><table><thead><tr><th>회사</th><th>공고</th><th>직무</th><th>경력</th><th>지역</th><th>마감</th><th/></tr></thead><tbody>{jobs.map(j=><tr key={j.id}><td><b>{j.company}</b><small>{j.representative_game}</small></td><td>{j.title}</td><td><div className="tags">{j.categories.map(c=><span key={c}>{c}</span>)}</div></td><td>{j.career||'미확인'}</td><td>{j.location||'미확인'}</td><td>{j.always_open?'상시채용':j.deadline||'미확인'}</td><td><a href={j.url} target="_blank" rel="noreferrer" aria-label="원문 열기"><ExternalLink size={16}/></a></td></tr>)}</tbody></table></div>}
-function NewsList({news}:{news:News[]}){if(!news.length)return <Empty title="관련 뉴스가 없습니다" text="수집된 공개 뉴스가 없습니다."/>;return <div className="news-list">{news.map(n=><a href={n.url} target="_blank" rel="noreferrer" key={n.id}><span>{n.source} · {n.published_at||'날짜 미확인'}</span><b>{n.title}</b><p>{n.summary||'요약 없음'}</p><em>{n.issue_type}</em></a>)}</div>}
-function Select({value,set,label,values}:{value:string;set:(v:string)=>void;label:string;values:(string|null)[]}){return <select value={value} onChange={e=>set(e.target.value)}><option value="">{label}</option>{[...new Set(values.filter(Boolean) as string[])].sort().map(v=><option key={v}>{v}</option>)}</select>}
-function Empty({title,text}:{title:string;text:string}){return <div className="empty"><b>{title}</b><p>{text}</p></div>}
-function Logo({name,url}:{name:string;url:string|null}){return url?<img className="logo" src={url} alt=""/>:<span className="logo fallback">{name.slice(0,1)}</span>}
-function countCategories(jobs:Job[]){const m:Record<string,number>={};jobs.forEach(j=>j.categories.forEach(c=>m[c]=(m[c]||0)+1));return Object.entries(m).map(([name,count])=>({name,count})).sort((a,b)=>b.count-a.count)}
-function groupBy<T>(list:T[],fn:(x:T)=>string){return list.reduce<Record<string,T[]>>((a,x)=>{(a[fn(x)]??=[]).push(x);return a},{})}
-function fmtChange(value:number|null){return value==null?'기준 없음':`${value>0?'+':''}${value}건`}
-
-const sampleProfiles:Record<string,Partial<Job>>={
-  '네오아크':{company_type:'중소기업',main_business:'PC·콘솔 RPG 개발',established_year:'2018년',employee_count:'120명'},
-  '블루포지':{company_type:'벤처기업',main_business:'멀티플랫폼 게임 개발',established_year:'2020년',employee_count:'85명'},
-  '픽셀웨이브':{company_type:'중소기업',main_business:'모바일게임 개발 및 서비스',established_year:'2016년',employee_count:'64명'},
-  '오로라랩':{company_type:'벤처기업',main_business:'게임 데이터 플랫폼',established_year:'2021년',employee_count:'42명'},
-  '레드캣게임즈':{company_type:'중소기업',main_business:'모바일게임 개발',established_year:'2019년',employee_count:'58명'},
-  '문라이트웍스':{company_type:'중소기업',main_business:'온라인게임 개발 및 운영',established_year:'2017년',employee_count:'96명'},
+function Categories({ data }: { data: Data }) {
+  const [params, setParams] = useSearchParams()
+  const selected = params.get('category') || ''
+  const counts = countCategories(data.snapshot.jobs)
+  const jobs = selected ? data.snapshot.jobs.filter(j => j.categories.includes(selected)) : []
+  return <section><PageTitle eyebrow="JOB CATEGORY" title="직무별 채용" description="어떤 직무에서 채용이 활발한지 비교해 보세요." />
+    <div className="category-grid">{counts.map((x, i) => <button className={selected === x.name ? 'active' : ''} onClick={() => setParams({ category: x.name })} key={x.name}><span className={`category-icon tone-${i % 4}`}><BarChart3 size={19} /></span><div><b>{x.name}</b><strong>{x.count.toLocaleString()}</strong><small>개의 공고</small></div><ChevronRight size={18} /></button>)}</div>
+    <div className="split-grid"><Panel eyebrow="TOTAL TREND" title="전체 채용 추이"><Trend history={data.history} /></Panel><Panel eyebrow="CATEGORY SHARE" title="직무별 현재 공고"><Bars rows={counts} /></Panel></div>
+    {selected && <><div className="section-heading compact"><div><span>SELECTED JOB</span><h2>{selected} 채용공고</h2></div><b>{jobs.length.toLocaleString()}건</b></div><JobCards jobs={jobs.slice(0, 60)} detailed /></>}
+  </section>
 }
+
+function Companies({ data }: { data: Data }) {
+  const companies = Object.entries(groupBy(data.snapshot.jobs, j => j.company)).sort((a, b) => b[1].length - a[1].length)
+  const [selected, setSelected] = useState(companies[0]?.[0] || '')
+  const [query, setQuery] = useState('')
+  const filtered = companies.filter(([name]) => name.toLowerCase().includes(query.toLowerCase()))
+  const jobs = companies.find(x => x[0] === selected)?.[1] || []
+  const profile = jobs[0]
+  const relatedNews = data.snapshot.news.filter(n => (n.companies || []).includes(selected))
+  return <section><PageTitle eyebrow="COMPANY DIRECTORY" title="회사별 채용" description="기업정보와 진행 중인 공고를 함께 확인하세요." count={companies.length} countLabel="개 회사" />
+    <div className="company-layout"><aside className="company-list"><label className="mini-search"><Search size={17} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="회사 검색" /></label><div>{filtered.map(([name, items]) => <button onClick={() => setSelected(name)} className={name === selected ? 'active' : ''} key={name}><Logo name={name} url={items[0].logo_url} /><span><b>{name}</b><small>{items[0].representative_game || '대표게임 정보 없음'}</small></span><strong>{items.length}</strong></button>)}</div></aside>
+      {selected && <article className="company-detail"><div className="company-hero"><Logo name={selected} url={profile?.logo_url || null} /><div><span>COMPANY PROFILE</span><h2>{selected}</h2><p>{profile?.representative_game || '대표게임 정보 없음'}</p></div>{profile?.company_url && <a className="outline-button" href={profile.company_url} target="_blank" rel="noreferrer">게임잡 기업정보 <ExternalLink size={15} /></a>}</div><div className="profile-grid"><Profile label="기업형태" value={profile?.company_type} /><Profile label="설립연도" value={profile?.established_year} /><Profile label="사원수" value={profile?.employee_count} /><Profile label="진행 중인 공고" value={`${jobs.length}건`} highlight /><Profile wide label="대표게임" value={profile?.representative_game} /><Profile wide label="주요사업" value={profile?.main_business} /></div><div className="section-heading compact"><div><span>OPEN POSITIONS</span><h2>진행 중인 공고</h2></div><b>{jobs.length}건</b></div><JobCards jobs={jobs} detailed />{relatedNews.length > 0 && <><div className="section-heading compact"><div><span>RELATED NEWS</span><h2>관련 업계 뉴스</h2></div></div><NewsList news={relatedNews} /></>}</article>}
+    </div>
+  </section>
+}
+
+function NewsPage({ news }: { news: News[] }) {
+  const [source, setSource] = useState(''), [issue, setIssue] = useState('')
+  const list = news.filter(n => (!source || n.source === source) && (!issue || n.issue_type === issue))
+  return <section><PageTitle eyebrow="INDUSTRY NEWS" title="업계 뉴스" description="채용 변화와 함께 살펴볼 게임업계 소식이에요." count={list.length} />
+    <div className="filter-card slim"><div className="filter-row"><Select value={source} set={setSource} label="전체 매체" values={news.map(n => n.source)} /><Select value={issue} set={setIssue} label="전체 이슈" values={news.map(n => n.issue_type)} /></div></div>
+    {list.length ? <NewsList news={list} /> : <Empty icon={Newspaper} title="수집된 뉴스가 아직 없어요" text="허용된 공개 출처가 연결되면 제목과 원문 링크가 표시돼요." />}
+  </section>
+}
+
+function Reports({ report }: { report: Report }) {
+  return <section><PageTitle eyebrow="MONTHLY INSIGHT" title="월간 리포트" description={`${report.period} 채용시장 분석을 확인하세요.`} />
+    <div className="report-hero"><div><FileText size={28} /><span>{report.status === 'complete' ? '분석 완료' : '생성 대기'}</span><h2>{report.period.replace('-', '년 ')}월<br />게임업계 채용 리포트</h2><p>채용 데이터와 업계 뉴스를 함께 살펴보고 변화의 가능성을 분석해요.</p></div><a className="primary-button" href={`reports/${report.period}.md`} download>Markdown 다운로드 <ArrowUpRight size={18} /></a></div>
+    {report.is_sample && <div className="status-strip warning">화면 검증용 예시 리포트입니다.</div>}
+    {report.markdown ? <Panel className="report-panel"><article className="report">{report.markdown.split('\n').map((line, i) => line.startsWith('# ') ? <h2 key={i}>{line.slice(2)}</h2> : line.startsWith('## ') ? <h3 key={i}>{line.slice(3)}</h3> : line.startsWith('> ') ? <blockquote key={i}>{line.slice(2)}</blockquote> : <p key={i}>{line}</p>)}</article></Panel> : <Empty icon={Sparkles} title="AI 리포트 생성 대기 중이에요" text={report.error || '분석 결과가 아직 없습니다.'} />}
+  </section>
+}
+
+function PageTitle({ eyebrow, title, description, count, countLabel = '개 공고' }: { eyebrow: string; title: string; description: string; count?: number; countLabel?: string }) {
+  return <div className="page-title"><div><span>{eyebrow}</span><h1>{title}</h1><p>{description}</p></div>{count !== undefined && <div className="page-count"><strong>{count.toLocaleString()}</strong><span>{countLabel}</span></div>}</div>
+}
+
+function Kpi({ icon: Icon, label, value, sub, primary = false }: { icon: typeof BriefcaseBusiness; label: string; value: string; sub: string; primary?: boolean }) {
+  return <div className={`kpi${primary ? ' primary' : ''}`}><div><span>{label}</span><Icon size={19} /></div><strong>{value}</strong><small>{sub}</small></div>
+}
+
+function Panel({ eyebrow, title, children, className = '' }: { eyebrow?: string; title?: string; children: React.ReactNode; className?: string }) {
+  return <div className={`panel ${className}`}>{title && <div className="panel-title">{eyebrow && <span>{eyebrow}</span>}<h3>{title}</h3></div>}{children}</div>
+}
+
+function Trend({ history }: { history: History }) {
+  if (!history.months.length) return <Empty title="아직 추이 데이터가 없어요" text="다음 월간 스냅샷부터 변화가 표시돼요." />
+  return <div className="chart"><ResponsiveContainer width="100%" height="100%"><AreaChart data={history.months}><defs><linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#3182f6" stopOpacity={.3} /><stop offset="1" stopColor="#3182f6" stopOpacity={0} /></linearGradient></defs><CartesianGrid stroke="#eef0f3" vertical={false} /><XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fill: '#8b95a1', fontSize: 12 }} /><YAxis tickLine={false} axisLine={false} tick={{ fill: '#8b95a1', fontSize: 12 }} width={42} /><Tooltip contentStyle={{ border: 0, borderRadius: 12, boxShadow: '0 6px 24px rgba(0,0,0,.12)' }} /><Area type="monotone" dataKey="total_open" stroke="#3182f6" strokeWidth={3} fill="url(#trendFill)" /></AreaChart></ResponsiveContainer></div>
+}
+
+function RankList({ rows, to }: { rows: { name: string; count: number; description?: string | null }[]; to: string }) {
+  return <div className="rank-list">{rows.map((row, i) => <NavLink to={to} key={row.name}><em>{i + 1}</em><span><b>{row.name}</b>{row.description && <small>{row.description}</small>}</span><strong>{row.count.toLocaleString()}</strong><ChevronRight size={16} /></NavLink>)}</div>
+}
+
+function Bars({ rows }: { rows: { name: string; count: number }[] }) {
+  const max = rows[0]?.count || 1
+  return <div className="bars">{rows.map(row => <div key={row.name}><span>{row.name}</span><div><i style={{ width: `${row.count / max * 100}%` }} /></div><b>{row.count.toLocaleString()}</b></div>)}</div>
+}
+
+function JobCards({ jobs, detailed = false }: { jobs: Job[]; detailed?: boolean }) {
+  return <div className={`job-list${detailed ? ' detailed' : ''}`}>{jobs.map(job => <a className="job-card" href={job.url} target="_blank" rel="noreferrer" key={job.id}><div className="job-company"><Logo name={job.company} url={job.logo_url} /><span><b>{job.company}</b><small>{job.representative_game || '대표게임 정보 없음'}</small></span></div><div className="job-content"><h3>{job.title}</h3><div className="tags">{job.categories.map(category => <span key={category}>{category}</span>)}</div><div className="job-meta"><span><BriefcaseBusiness size={14} />{job.career || '경력 미확인'}</span><span><MapPin size={14} />{job.location || '지역 미확인'}</span><span><CalendarDays size={14} />{job.always_open ? '상시채용' : job.deadline || '마감일 미확인'}</span></div></div><span className="open-icon"><ArrowUpRight size={18} /></span></a>)}</div>
+}
+
+function NewsList({ news }: { news: News[] }) {
+  return <div className="news-list">{news.map(item => <a href={item.url} target="_blank" rel="noreferrer" key={item.id}><div><span>{item.source}</span><em>{item.issue_type}</em></div><h3>{item.title}</h3><p>{item.summary || '요약 정보가 없습니다.'}</p><footer>{item.published_at || '날짜 미확인'}<ArrowUpRight size={17} /></footer></a>)}</div>
+}
+
+function Profile({ label, value, wide = false, highlight = false }: { label: string; value?: string | null; wide?: boolean; highlight?: boolean }) {
+  return <div className={`${wide ? 'wide ' : ''}${highlight ? 'highlight' : ''}`}><span>{label}</span><b>{value || '정보 없음'}</b></div>
+}
+
+function Select({ value, set, label, values }: { value: string; set: (value: string) => void; label: string; values: (string | null)[] }) {
+  return <select value={value} onChange={e => set(e.target.value)}><option value="">{label}</option>{[...new Set(values.filter(Boolean) as string[])].sort().map(v => <option key={v}>{v}</option>)}</select>
+}
+
+function Logo({ name, url }: { name: string; url: string | null }) {
+  const [failed, setFailed] = useState(false)
+  return url && !failed ? <img className="logo" src={url} alt="" onError={() => setFailed(true)} /> : <span className="logo fallback">{name.slice(0, 1)}</span>
+}
+
+function Empty({ title, text, icon: Icon }: { title: string; text: string; icon?: typeof Newspaper }) {
+  return <div className="empty">{Icon && <span><Icon size={26} /></span>}<b>{title}</b><p>{text}</p></div>
+}
+
+function countCategories(jobs: Job[]) {
+  const counts: Record<string, number> = {}
+  jobs.forEach(job => job.categories.forEach(category => { counts[category] = (counts[category] || 0) + 1 }))
+  return Object.entries(counts).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count)
+}
+
+function groupBy<T>(items: T[], getKey: (item: T) => string) {
+  return items.reduce<Record<string, T[]>>((result, item) => { (result[getKey(item)] ??= []).push(item); return result }, {})
+}
+
+function fmtChange(value: number | null) { return value == null ? '기준 없음' : `${value > 0 ? '+' : ''}${value.toLocaleString()}건` }
+function formatDate(value: string) { return new Date(value).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) }

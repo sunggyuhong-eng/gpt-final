@@ -9,7 +9,7 @@ export type Job = {
 
 export type News = {
   id: string; source: string; title: string; url: string; published_at: string | null;
-  summary: string | null; related_companies: string[]; related_games: string[];
+  summary: string | null; companies: string[]; games: string[];
   keywords: string[]; issue_type: string; related_sources: {source:string;url:string}[];
 }
 
