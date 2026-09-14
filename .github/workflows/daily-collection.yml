@@ -3,7 +3,7 @@ name: Daily Collection
 on:
   schedule:
     # 00:15 UTC = 09:15 Asia/Seoul; day 1 is reserved for monthly workflow.
-    - cron: '15 0 * * *'
+    - cron: '0 0 * * *'
 
 permissions:
   contents: write
