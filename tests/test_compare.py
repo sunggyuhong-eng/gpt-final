@@ -30,6 +30,17 @@ def test_compare_new_maintained_closed():
     assert result["change"] == 0
 
 
+def test_compare_uses_gamejob_number_across_different_id_formats():
+    old = job("283677")
+    old["url"] = "https://www.gamejob.co.kr/List_GI/GIR_Read.asp?GI_No=283677"
+    new = job("www.gamejob.co.kr:283677")
+    new["url"] = "https://www.gamejob.co.kr/Recruit/GI_Read/View?GI_No=283677"
+    result = compare([new], [old])
+    assert result["new_count"] == 0
+    assert result["maintained_count"] == 1
+    assert result["closed_count"] == 0
+
+
 def test_reposted_job_is_flagged_without_merging_counts():
     old = job("old", company="A")
     old["title"] = "서버 개발자"

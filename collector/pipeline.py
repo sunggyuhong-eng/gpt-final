@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -82,8 +83,20 @@ def _fingerprint(job: dict) -> str:
     return "|".join("".join(ch.lower() for ch in (job.get(k) or "") if ch.isalnum()) for k in ("company", "title"))
 
 
+def stable_job_id(job: dict) -> str:
+    """서로 다른 게임잡 URL·ID 형식을 동일한 공고번호로 통일한다."""
+    url = str(job.get("url") or "")
+    match = re.search(r"[?&]GI_No=(\d+)", url, re.IGNORECASE)
+    if match:
+        return f"gamejob:{match.group(1)}"
+    raw = str(job.get("id") or "")
+    if (job.get("source") == "게임잡" or "gamejob.co.kr" in url) and (match := re.search(r"(\d{5,})$", raw)):
+        return f"gamejob:{match.group(1)}"
+    return raw
+
+
 def compare(current_jobs: list[dict], previous_jobs: list[dict] | None) -> dict:
-    current = {x["id"]: x for x in current_jobs}
+    current = {stable_job_id(x): x for x in current_jobs}
     if previous_jobs is None:
         return {
             "has_baseline": False, "baseline_message": "기준 데이터 없음",
@@ -97,7 +110,7 @@ def compare(current_jobs: list[dict], previous_jobs: list[dict] | None) -> dict:
             "by_employment_type": _no_baseline(_count(current_jobs, "employment_type")),
             "company_category": [], "reposted": [],
         }
-    previous = {x["id"]: x for x in previous_jobs}
+    previous = {stable_job_id(x): x for x in previous_jobs}
     new_ids = sorted(current.keys() - previous.keys())
     maintained_ids = sorted(current.keys() & previous.keys())
     closed_ids = sorted(previous.keys() - current.keys())

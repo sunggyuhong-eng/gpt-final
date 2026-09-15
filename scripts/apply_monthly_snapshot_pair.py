@@ -9,7 +9,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from collector.pipeline import ROOT, compare, read_json, update_category_history, write_json
+from collector.pipeline import ROOT, compare, read_json, stable_job_id, update_category_history, write_json
 from collector.report import build_methodology
 
 
@@ -29,6 +29,9 @@ def main() -> None:
     current_period = current["period"][:7]
     baseline["period"] = baseline_period
     current["period"] = current_period
+    for payload in (baseline, current):
+        for job in payload["jobs"]:
+            job["id"] = stable_job_id(job)
 
     snapshots = ROOT / "data" / "snapshots"
     snapshots.mkdir(parents=True, exist_ok=True)

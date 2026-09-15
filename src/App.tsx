@@ -173,7 +173,7 @@ function Companies({ data }: { data: Data }) {
 
 function Reports({ report }: { report: Report }) {
   const emptyText = report.status === 'pending_api_key'
-    ? '운영자는 GitHub 저장소 Settings → Secrets and variables → Actions에 ANTHROPIC_API_KEY를 등록한 뒤 Manual Collection을 monthly, force=true로 실행해 주세요.'
+    ? 'GitHub 저장소 Settings → Secrets and variables → Actions에 ANTHROPIC_API_KEY를 입력한 뒤 Actions의 Generate AI Report를 수동 실행해 주세요.'
     : (report.error || '분석 결과가 아직 없습니다.')
   return <section><PageTitle eyebrow="MONTHLY INSIGHT" title="월간 리포트" description={`${report.period} 채용시장 분석을 확인하세요.`} />
     <div className="report-hero"><div><FileText size={28} /><span>{report.status === 'complete' ? '분석 완료' : '생성 대기'}</span><h2>{report.period.replace('-', '년 ')}월<br />게임업계 채용 리포트</h2><p>{report.comparison_label ? `${report.comparison_label} 채용 변화와 ` : '채용 변화와 '}게임잡 업계 소식을 함께 검토해 변화 배경의 가능성을 분석해요.</p></div>{report.markdown && <a className="primary-button" href={`reports/${report.period}.md`} download>Markdown 다운로드 <ArrowUpRight size={18} /></a>}</div>
