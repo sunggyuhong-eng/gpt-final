@@ -10,7 +10,7 @@
 
 1. 매일 오전 9시(한국 시간) 공개 채용공고를 수집해 `data/daily/YYYY-MM-DD.json`에 보존합니다.
 2. 매월 1일 오전 9시에는 `data/snapshots/YYYY-MM.json`을 만들고 전월과 비교합니다.
-3. Anthropic Claude API가 제공된 경우 전체 공고·전체 뉴스 입력으로 `reports/YYYY-MM.md`와 `data/reports/YYYY-MM.json`을 생성합니다.
+3. OpenAI API가 제공된 경우 전체 공고·전체 뉴스 입력으로 `reports/YYYY-MM.md`와 `data/reports/YYYY-MM.json`을 생성합니다.
 4. React는 저장소의 정적 JSON만 읽습니다. 외부 사이트를 브라우저에서 직접 호출하지 않습니다.
 5. 수집 성공 여부와 오류는 `data/collection-status.json`에 기록합니다.
 6. 직무별 화면은 `data/category-history.json`을 사용해 선택한 대분류 또는 소분류를 공식 월간 스냅샷별로 비교합니다.
@@ -26,7 +26,7 @@ game-industry-hiring-tracker/
 │  ├─ adapters/              ← 사이트별 수집 코드
 │  ├─ normalize.py           ← 회사·직무·날짜 정규화
 │  ├─ pipeline.py            ← 저장·중복 제거·전월 비교
-│  ├─ report.py              ← Claude 월간 리포트 생성
+│  ├─ report.py              ← GPT 월간 리포트 생성
 │  └─ validate.py            ← 데이터 검증
 ├─ config/                   ← 수정 가능한 분류 규칙
 ├─ data/                     ← JSON 데이터가 들어 있는 폴더
@@ -77,7 +77,7 @@ game-industry-hiring-tracker/
 
 수집 워크플로가 JSON과 리포트를 저장소에 커밋하기 위해 필요합니다.
 
-### Claude API 키
+### OpenAI API 키
 
 AI 리포트만 사용하도록 설계되어 있으므로 키가 없으면 월간 리포트는 생성되지 않습니다.
 
@@ -85,12 +85,12 @@ API 키는 공개 웹페이지에 입력하지 않습니다. 브라우저 입력
 
 1. 저장소 `Settings` → `Secrets and variables` → `Actions`로 이동합니다.
 2. `New repository secret`을 누릅니다.
-3. 이름은 반드시 `ANTHROPIC_API_KEY`, 값은 Anthropic Console에서 새로 발급받은 키를 입력합니다.
-4. 선택 사항으로 `Variables` 탭에 `ANTHROPIC_MODEL`을 추가할 수 있습니다. 기본값은 `claude-sonnet-5`입니다.
+3. 이름은 반드시 `OPENAI_API_KEY`, 값은 OpenAI Platform에서 새로 발급받은 키를 입력합니다.
+4. 선택 사항으로 `Variables` 탭에 `OPENAI_MODEL`을 추가할 수 있습니다. 기본값은 `gpt-5.5`입니다.
 
-키를 코드, JSON, README 또는 채팅에 입력하지 마세요. 공개된 키는 즉시 폐기하고 새 키로 교체해야 합니다. API 사용료와 사용 가능 모델은 Anthropic 계정 설정에 따라 달라집니다. 키가 없거나 잘못된 경우 리포트 Actions는 빨간불로 실패하므로 성공으로 오해하지 않습니다.
+키를 코드, JSON, README 또는 채팅에 입력하지 마세요. 공개된 키는 즉시 폐기하고 새 키로 교체해야 합니다. API 사용료와 사용 가능 모델은 OpenAI 계정 설정에 따라 달라집니다. 키가 없거나 잘못된 경우 리포트 Actions는 빨간불로 실패합니다.
 
-AI 리포트는 자동 수집에서 생성하지 않습니다. 현재 저장된 스냅샷으로 리포트를 만들고 싶을 때만 `Actions` → `Generate AI Report` → `Run workflow`에서 `Claude API 토큰 사용`을 체크한 뒤 실행하세요. 이때만 Claude API 토큰을 사용하며 게임잡은 다시 수집하지 않습니다.
+AI 리포트는 자동 수집에서 생성하지 않습니다. 현재 저장된 스냅샷으로 리포트를 만들고 싶을 때만 `Actions` → `Generate AI Report` → `Run workflow`에서 `OpenAI API 토큰 사용`을 체크한 뒤 실행하세요. 이때만 GPT API 토큰을 사용하며 게임잡은 다시 수집하지 않습니다.
 
 ### 수집 출처 승인
 
@@ -132,7 +132,7 @@ GitHub 예약 작업은 부하에 따라 다소 늦게 시작될 수 있습니�
 - `data/collection-status.json`에는 사이트별 `success`/`failed`, 수집 건수, 오류 이유가 기록됩니다.
 - `data/latest.json`의 `collected_at`이 마지막 정상 수집 시각입니다.
 - 채용공고가 0건이면 새 `latest.json`을 저장하지 않아 기존 정상 화면을 보호합니다.
-- `ANTHROPIC_API_KEY`가 없으면 `pending_api_key` 상태만 기록하며 대체 문장을 만들지 않습니다.
+- `OPENAI_API_KEY`가 없으면 `pending_api_key` 상태만 기록하며 대체 문장을 만들지 않습니다.
 - 게임잡처럼 사용 허가가 기록된 도메인은 `robots.txt` 연결을 3회 재시도합니다. 그래도 네트워크로 확인할 수 없을 때만 `ROBOTS_UNAVAILABLE_ALLOWED_HOSTS`의 승인 도메인 정책을 사용하며, 정상 응답에서 `Disallow`가 확인되면 수집을 중단합니다.
 
 상세 대응표는 [운영 및 오류 대응 안내서](docs/OPERATIONS.md)를 참고하세요.
@@ -176,7 +176,7 @@ npm run preview
 
 ```bash
 python scripts/run_pipeline.py --mode daily
-ANTHROPIC_API_KEY=... python scripts/run_pipeline.py --mode monthly
+OPENAI_API_KEY=... python scripts/generate_existing_report.py
 ```
 
 ## 데이터 판정 기준
@@ -226,9 +226,9 @@ python scripts/apply_monthly_snapshot_pair.py "이전월.json" "현재월.json"
 - 신작 출시, 프로젝트 중단, 서비스 종료, 투자·인수합병, 실적, 구조조정, 조직개편 등과 회사별 채용 변동의 시점·회사 일치 여부
 - 이전 정상 월간 데이터가 없으면 증감 수치를 만들지 않고 `기준 데이터 없음`으로 표시
 
-Claude는 위에서 계산된 전체 통계, 전체 공고, 전체 뉴스 근거를 함께 검토합니다. 기사에 채용 확대·축소가 직접 명시된 경우와 단순히 같은 시기에 발생한 경우를 구분하고, 인과관계가 확인되지 않으면 `관련 가능성이 있다` 또는 `추가 확인이 필요하다`고 작성합니다. 원본에 없는 수치나 원인을 만들어내지 않도록 지시되어 있으며, API 키가 없으면 리포트를 만들지 않고 Actions를 실패 처리합니다.
+GPT는 위에서 계산된 전체 통계, 전체 공고, 전체 뉴스 근거를 함께 검토합니다. 기사에 채용 확대·축소가 직접 명시된 경우와 단순히 같은 시기에 발생한 경우를 구분하고, 인과관계가 확인되지 않으면 `관련 가능성이 있다` 또는 `추가 확인이 필요하다`고 작성합니다. 원본에 없는 수치나 원인을 만들어내지 않도록 지시되어 있으며, API 키가 없으면 리포트를 만들지 않고 Actions를 실패 처리합니다.
 
-웹의 월간 리포트 화면에는 비교 기준일, 전달한 공고·뉴스 근거 수, 뉴스 기간, 판단 규칙, Claude에 전달되는 전체 시스템 프롬프트를 함께 표시합니다. 운영자가 프롬프트를 바꾸려면 `config/report_prompt.md`만 수정하면 됩니다.
+웹의 월간 리포트 화면에는 비교 기준일, 전달한 공고·뉴스 근거 수, 뉴스 기간, 판단 규칙, GPT에 전달되는 전체 시스템 프롬프트를 함께 표시합니다. 운영자가 프롬프트를 바꾸려면 `config/report_prompt.md`만 수정하면 됩니다.
 
 ## 수집 정책과 법적 주의
 
