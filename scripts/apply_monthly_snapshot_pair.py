@@ -10,6 +10,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from collector.pipeline import ROOT, compare, read_json, stable_job_id, update_category_history, write_json
+from collector.normalize import normalize_categories, normalize_subcategories
 from collector.report import build_methodology
 
 
@@ -32,6 +33,13 @@ def main() -> None:
     for payload in (baseline, current):
         for job in payload["jobs"]:
             job["id"] = stable_job_id(job)
+            raw_categories = job.get("job_subcategories") or job.get("original_categories") or job.get("categories") or []
+            subcategories = normalize_subcategories(*raw_categories)
+            major_categories = normalize_categories(*(subcategories or raw_categories))
+            job["original_categories"] = list(raw_categories)
+            job["job_subcategories"] = subcategories
+            job["job_major_categories"] = major_categories
+            job["categories"] = major_categories
 
     snapshots = ROOT / "data" / "snapshots"
     snapshots.mkdir(parents=True, exist_ok=True)
@@ -77,7 +85,7 @@ def main() -> None:
         "comparison_label": f"{baseline_period} → {current_period}",
         "is_sample": is_sample,
         "status": "pending_api_key",
-        "error": "예시 데이터 비교가 적용되었습니다. 실제 월간 분석은 ANTHROPIC_API_KEY 등록 후 생성됩니다.",
+        "error": "월간 비교 데이터가 적용되었습니다. GPT 분석은 OPENAI_API_KEY 등록 후 수동 생성됩니다.",
         "markdown": None,
         "statistics": stats,
         "job_examples": [

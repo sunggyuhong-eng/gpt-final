@@ -173,7 +173,7 @@ function Companies({ data }: { data: Data }) {
 
 function Reports({ report }: { report: Report }) {
   const emptyText = report.status === 'pending_api_key'
-    ? 'GitHub 저장소 Settings → Secrets and variables → Actions에 ANTHROPIC_API_KEY를 입력한 뒤 Actions의 Generate AI Report를 수동 실행해 주세요.'
+    ? 'GitHub 저장소 Settings → Secrets and variables → Actions에 OPENAI_API_KEY를 입력한 뒤 Actions의 Generate AI Report를 수동 실행해 주세요.'
     : (report.error || '분석 결과가 아직 없습니다.')
   return <section><PageTitle eyebrow="MONTHLY INSIGHT" title="월간 리포트" description={`${report.period} 채용시장 분석을 확인하세요.`} />
     <div className="report-hero"><div><FileText size={28} /><span>{report.status === 'complete' ? '분석 완료' : '생성 대기'}</span><h2>{report.period.replace('-', '년 ')}월<br />게임업계 채용 리포트</h2><p>{report.comparison_label ? `${report.comparison_label} 채용 변화와 ` : '채용 변화와 '}게임잡 업계 소식을 함께 검토해 변화 배경의 가능성을 분석해요.</p></div>{report.markdown && <a className="primary-button" href={`reports/${report.period}.md`} download>Markdown 다운로드 <ArrowUpRight size={18} /></a>}</div>
@@ -190,7 +190,7 @@ function ReportMethod({ report }: { report: Report }) {
   return <section className="method-card"><div className="method-heading"><div><span>ANALYSIS TRANSPARENCY</span><h2>분석 근거와 작성 기준</h2></div><b>프롬프트 {method.prompt_version}</b></div>
     <div className="evidence-grid"><div><span>비교 기간</span><b>{e.baseline_period || '기준 없음'} → {e.current_period || report.period}</b></div><div><span>오픈 공고</span><b>{e.previous_open_jobs?.toLocaleString() || '-'}건 → {e.current_open_jobs?.toLocaleString() || '-'}건</b></div><div><span>AI에 전달한 근거</span><b>공고 {e.job_examples_sent} · 뉴스 {e.news_sent_to_model}</b></div><div><span>뉴스 검토 범위</span><b>{e.news_date_from || '-'} ~ {e.news_date_to || '-'}</b></div></div>
     <p className="input-description">{method.input_description}</p><ul>{method.rules.map(rule => <li key={rule}>{rule}</li>)}</ul>
-    <details><summary>Claude에 전달하는 전체 프롬프트 보기</summary><pre>{method.system_prompt}</pre></details>
+    <details><summary>GPT에 전달하는 전체 프롬프트 보기</summary><pre>{method.system_prompt}</pre></details>
   </section>
 }
 

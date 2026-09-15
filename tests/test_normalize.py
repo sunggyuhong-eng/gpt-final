@@ -5,6 +5,11 @@ def test_job_can_have_multiple_categories():
     assert normalize_categories("게임개발(클라이언트)", "QA·테스터") == ["게임제작", "게임운영·QA"]
 
 
+def test_legacy_major_field_containing_subcategory_maps_to_real_major():
+    assert normalize_categories("게임기획") == ["게임제작"]
+    assert normalize_categories("전략기획") == ["사업기획"]
+
+
 def test_source_subcategories_are_preserved():
     assert split_job_categories("게임개발(모바일); 게임AI 개발") == ["게임개발(모바일)", "게임AI 개발"]
 

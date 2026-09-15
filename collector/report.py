@@ -4,7 +4,7 @@ import json
 import os
 import re
 
-from anthropic import Anthropic
+import httpx
 
 from collector.pipeline import ROOT, read_json, write_json
 
@@ -18,29 +18,53 @@ def generate(month: str) -> dict:
         raise FileNotFoundError(f"분석 데이터 없음: {report_path}")
     analysis_input = _compact_payload(payload)
     payload["methodology"] = build_methodology(payload, analysis_input)
-    api_key = os.getenv("ANTHROPIC_API_KEY")
+    api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
-        payload.update({"status": "pending_api_key", "error": "ANTHROPIC_API_KEY가 없어 Claude 리포트를 생성하지 않았습니다.", "markdown": None})
+        payload.update({"status": "pending_api_key", "error": "OPENAI_API_KEY가 없어 GPT 리포트를 생성하지 않았습니다.", "markdown": None})
         write_json(report_path, payload)
         write_json(ROOT / "data" / "reports" / "latest.json", payload)
-        raise RuntimeError("ANTHROPIC_API_KEY가 없습니다. GitHub Actions Secret을 확인하세요.")
-    model = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-5")
-    response = Anthropic(api_key=api_key).messages.create(
-        model=model,
-        max_tokens=6000,
-        system=SYSTEM,
-        messages=[{"role": "user", "content": json.dumps(analysis_input, ensure_ascii=False)}],
+        raise RuntimeError("OPENAI_API_KEY가 없습니다. GitHub Actions Secret을 확인하세요.")
+    model = os.getenv("OPENAI_MODEL", "gpt-5.5")
+    response = httpx.post(
+        "https://api.openai.com/v1/responses",
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        json={
+            "model": model,
+            "max_output_tokens": 6000,
+            "instructions": SYSTEM,
+            "input": json.dumps(analysis_input, ensure_ascii=False),
+        },
+        timeout=600,
     )
-    markdown = "".join(block.text for block in response.content if getattr(block, "type", None) == "text").strip()
+    if not response.is_success:
+        try:
+            message = response.json().get("error", {}).get("message") or response.text
+        except ValueError:
+            message = response.text
+        request_id = response.headers.get("x-request-id") or "없음"
+        raise RuntimeError(f"OpenAI API 오류 {response.status_code}: {message} (request_id: {request_id})")
+    result = response.json()
+    markdown = _response_text(result).strip()
     if not markdown:
-        raise RuntimeError("Claude가 비어 있는 리포트를 반환했습니다.")
-    payload.update({"status": "complete", "provider": "anthropic", "model": model, "markdown": markdown, "error": None})
+        raise RuntimeError("GPT가 비어 있는 리포트를 반환했습니다.")
+    payload.update({"status": "complete", "provider": "openai", "model": model, "markdown": markdown, "error": None})
     write_json(report_path, payload)
     write_json(ROOT / "data" / "reports" / "latest.json", payload)
     reports = ROOT / "reports"
     reports.mkdir(exist_ok=True)
     (reports / f"{month}.md").write_text(markdown, encoding="utf-8")
     return payload
+
+
+def _response_text(result: dict) -> str:
+    if result.get("output_text"):
+        return str(result["output_text"])
+    texts: list[str] = []
+    for item in result.get("output") or []:
+        for content in item.get("content") or []:
+            if content.get("type") == "output_text" and content.get("text"):
+                texts.append(str(content["text"]))
+    return "".join(texts)
 
 
 def build_methodology(payload: dict, analysis_input: dict | None = None) -> dict:

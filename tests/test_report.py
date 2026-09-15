@@ -1,9 +1,10 @@
 import json
 
+import httpx
 import pytest
 
 import collector.report as report_module
-from collector.report import _compact_payload, _select_relevant_news
+from collector.report import _compact_payload, _response_text, _select_relevant_news
 
 
 def test_report_payload_removes_large_id_lists():
@@ -35,11 +36,38 @@ def test_all_news_are_preserved_after_prioritizing():
 
 def test_missing_api_key_fails_instead_of_green_success(tmp_path, monkeypatch):
     monkeypatch.setattr(report_module, "ROOT", tmp_path)
-    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     path = tmp_path / "data" / "reports" / "2026-09.json"
     path.parent.mkdir(parents=True)
     path.write_text(json.dumps({"period": "2026-09", "statistics": {}, "job_examples": [], "news": []}), encoding="utf-8")
-    with pytest.raises(RuntimeError, match="ANTHROPIC_API_KEY"):
+    with pytest.raises(RuntimeError, match="OPENAI_API_KEY"):
         report_module.generate("2026-09")
     saved = json.loads(path.read_text(encoding="utf-8"))
     assert saved["status"] == "pending_api_key"
+
+
+def test_responses_api_output_text_is_extracted():
+    result = {"output": [{"type": "message", "content": [{"type": "output_text", "text": "# 월간 리포트"}]}]}
+    assert _response_text(result) == "# 월간 리포트"
+
+
+def test_generate_uses_openai_responses_api(tmp_path, monkeypatch):
+    monkeypatch.setattr(report_module, "ROOT", tmp_path)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("OPENAI_MODEL", "gpt-test")
+    path = tmp_path / "data" / "reports" / "2026-09.json"
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps({"period": "2026-09", "statistics": {}, "job_examples": [], "news": []}), encoding="utf-8")
+    captured = {}
+
+    def fake_post(url, **kwargs):
+        captured.update({"url": url, **kwargs})
+        return httpx.Response(200, json={"output": [{"content": [{"type": "output_text", "text": "# 완료"}]}]})
+
+    monkeypatch.setattr(report_module.httpx, "post", fake_post)
+    result = report_module.generate("2026-09")
+    assert captured["url"] == "https://api.openai.com/v1/responses"
+    assert captured["json"]["model"] == "gpt-test"
+    assert captured["headers"]["Authorization"] == "Bearer test-key"
+    assert result["provider"] == "openai"
+    assert result["markdown"] == "# 완료"

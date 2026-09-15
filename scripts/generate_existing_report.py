@@ -20,7 +20,7 @@ def main() -> int:
         raise RuntimeError("data/reports/latest.json에 분석할 period가 없습니다.")
     result = generate(month)
     if result.get("status") != "complete" or not result.get("markdown"):
-        raise RuntimeError("Claude 리포트가 완성되지 않았습니다.")
+        raise RuntimeError("GPT 리포트가 완성되지 않았습니다.")
     print(json.dumps({
         "period": month,
         "status": result["status"],
