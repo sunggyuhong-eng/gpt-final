@@ -103,8 +103,9 @@ class GameJobAdapter(Adapter):
                 new_on_page += 1
             if new_on_page == 0:
                 break
-        if enrich_companies:
-            self._enrich_company_profiles(jobs)
+        # 일별 수집에서도 이미 확보한 기업정보 캐시는 항상 다시 적용한다.
+        # 월간 수집일 때만 캐시에 없는 기업 상세 페이지를 추가로 조회한다.
+        self._apply_company_profiles(jobs, fetch_missing=enrich_companies)
         return jobs
 
     @staticmethod
@@ -126,14 +127,16 @@ class GameJobAdapter(Adapter):
             return None
         return GameJobAdapter._listing_date(value)
 
-    def _enrich_company_profiles(self, jobs: list[JobPosting]) -> None:
+    def _apply_company_profiles(self, jobs: list[JobPosting], fetch_missing: bool = False) -> None:
         profiles = self._load_profile_cache()
         total = len({job.company_url for job in jobs if job.company_url})
         fetched = 0
+        attempted: set[str] = set()
         for job in jobs:
             if not job.company_url:
                 continue
-            if job.company_url not in profiles:
+            if fetch_missing and not profiles.get(job.company_url) and job.company_url not in attempted:
+                attempted.add(job.company_url)
                 try:
                     profiles[job.company_url] = self._company_profile(job.company_url)
                     fetched += 1
@@ -142,12 +145,20 @@ class GameJobAdapter(Adapter):
                         LOG.info("새 기업정보 수집: %s개 (전체 대상 %s개)", fetched, total)
                 except Exception as exc:
                     LOG.warning("기업정보 수집 실패: %s (%s)", job.company_url, exc)
-                    profiles[job.company_url] = {}
-            profile = profiles[job.company_url]
+            profile = profiles.get(job.company_url, {})
             for field in ("logo_url", "representative_game", "company_type", "main_business", "established_year", "employee_count"):
-                setattr(job, field, profile.get(field))
+                value = profile.get(field)
+                # 상세 조회가 일부 실패해도 목록/CSV에서 이미 얻은 값을 지우지 않는다.
+                if value:
+                    if field == "logo_url":
+                        value = value.replace("\\", "/")
+                    setattr(job, field, value)
 
         LOG.info("기업정보 적용: %s개 대상, 신규 수집 %s개", total, fetched)
+
+    def _enrich_company_profiles(self, jobs: list[JobPosting]) -> None:
+        """기존 호출부와 테스트를 위한 호환 래퍼."""
+        self._apply_company_profiles(jobs, fetch_missing=True)
 
     def _load_profile_cache(self) -> dict[str, dict[str, str | None]]:
         if not self.profile_cache_path.exists():
@@ -170,7 +181,7 @@ class GameJobAdapter(Adapter):
         soup = BeautifulSoup(response.text, "html.parser")
         logo = soup.select_one(".corpHeader .corpLogo img")
         values: dict[str, str | None] = {
-            "logo_url": urljoin(str(response.url), logo.get("src")) if logo and logo.get("src") else None,
+            "logo_url": urljoin(str(response.url), logo.get("src")).replace("\\", "/") if logo and logo.get("src") else None,
         }
         fields = {"대표게임": "representative_game", "기업형태": "company_type", "주요사업": "main_business", "설립년도": "established_year", "사원수": "employee_count"}
         for term in soup.select(".corpInfo dt"):

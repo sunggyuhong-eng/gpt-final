@@ -12,7 +12,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from collector.normalize import normalize_categories, normalize_company, normalize_subcategories, split_job_categories
-from collector.pipeline import ROOT, compare, read_json, write_json
+from collector.pipeline import ROOT, compare, read_json, update_category_history, write_json
 from collector.report import build_methodology
 
 
@@ -157,6 +157,7 @@ def main() -> None:
         ],
     }
     write_json(ROOT / "data" / "history-summary.json", history)
+    update_category_history()
     print(json.dumps({
         "baseline": len(baseline_jobs),
         "current": len(current_jobs),

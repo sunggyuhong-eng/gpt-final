@@ -1,4 +1,7 @@
 from collector.models import JobPosting
+import json
+
+import collector.pipeline as pipeline
 from collector.pipeline import compare, dedupe_jobs
 
 
@@ -40,3 +43,20 @@ def test_dedupe_job_merges_categories():
     merged = dedupe_jobs([a, b])
     assert len(merged) == 1
     assert merged[0]["categories"] == ["QA", "프로그래밍"]
+
+
+def test_category_history_contains_major_and_subcategory_counts(tmp_path, monkeypatch):
+    monkeypatch.setattr(pipeline, "ROOT", tmp_path)
+    daily = tmp_path / "data" / "daily"
+    daily.mkdir(parents=True)
+    (daily / "2026-09-01.json").write_text(json.dumps({
+        "period": "2026-09-01", "is_sample": False,
+        "jobs": [
+            {"job_major_categories": ["게임제작"], "job_subcategories": ["게임기획"]},
+            {"job_major_categories": ["게임제작"], "job_subcategories": ["서버"]},
+        ],
+    }, ensure_ascii=False), encoding="utf-8")
+    pipeline.update_category_history()
+    result = json.loads((tmp_path / "data" / "category-history.json").read_text(encoding="utf-8"))
+    assert result["periods"][0]["major"]["게임제작"] == 2
+    assert result["periods"][0]["sub"]["게임기획"] == 1

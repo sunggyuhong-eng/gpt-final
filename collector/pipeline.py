@@ -175,6 +175,7 @@ def run(mode: str = "daily", force: bool = False, now: datetime | None = None) -
     snapshot = {"schema_version": 1, "period": day, "collected_at": status["finished_at"], "is_sample": False, "jobs": jobs}
     write_json(daily_path, snapshot)
     write_json(ROOT / "data" / "latest.json", snapshot)
+    update_category_history()
     if mode == "monthly":
         monthly_path = ROOT / "data" / "snapshots" / f"{month}.json"
         if monthly_path.exists() and not force:
@@ -206,3 +207,19 @@ def update_history(month: str, stats: dict) -> None:
     data["months"] = [x for x in data.get("months", []) if x["month"] != month] + [row]
     data["months"].sort(key=lambda x: x["month"])
     write_json(path, data)
+
+
+def update_category_history() -> None:
+    """브라우저가 큰 일별 파일을 모두 받지 않도록 직무별 시계열만 따로 집계한다."""
+    periods: list[dict] = []
+    for path in sorted((ROOT / "data" / "daily").glob("*.json")):
+        snapshot = read_json(path, {})
+        jobs = snapshot.get("jobs") or []
+        if snapshot.get("is_sample") or not jobs:
+            continue
+        periods.append({
+            "period": snapshot.get("period") or path.stem,
+            "major": _count(jobs, "job_major_categories", True) if any("job_major_categories" in job for job in jobs) else _count(jobs, "categories", True),
+            "sub": _count(jobs, "job_subcategories", True) if any("job_subcategories" in job for job in jobs) else _count(jobs, "original_categories", True),
+        })
+    write_json(ROOT / "data" / "category-history.json", {"is_sample": False, "periods": periods})

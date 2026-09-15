@@ -1,4 +1,4 @@
-# 게임업계 채용 데이터
+# 게임잡 채용 데이터
 
 게임잡 공개 채용공고를 수집해 회사별·직무별 추이를 보여주는 정적 React 대시보드입니다. 별도 서버와 데이터베이스 없이 GitHub Actions, 저장소 JSON, GitHub Pages만으로 운영합니다.
 
@@ -13,6 +13,8 @@
 3. Anthropic Claude API가 제공된 경우에만 `reports/YYYY-MM.md`와 `data/reports/YYYY-MM.json`을 생성합니다.
 4. React는 저장소의 정적 JSON만 읽습니다. 외부 사이트를 브라우저에서 직접 호출하지 않습니다.
 5. 수집 성공 여부와 오류는 `data/collection-status.json`에 기록합니다.
+6. 직무별 화면은 `data/category-history.json`을 사용해 선택한 대분류 또는 소분류만 날짜별로 비교합니다.
+7. 매일 수집할 때도 `data/company-profiles.json`의 기존 로고·대표게임을 최신 공고에 재적용하며, 일부 상세 조회가 실패해도 기존 값을 지우지 않습니다.
 
 ## 폴더 구조
 

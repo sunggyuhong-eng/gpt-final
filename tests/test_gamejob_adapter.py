@@ -1,4 +1,7 @@
+import json
+
 from collector.adapters.gamejob import GameJobAdapter
+from collector.models import JobPosting
 
 
 class Response:
@@ -52,3 +55,18 @@ def test_company_profile_fields():
     assert profile["representative_game"] == "대표작"
     assert profile["employee_count"] == "300명"
     assert profile["logo_url"] == "https://img.example/logo.png"
+
+
+def test_daily_collection_reuses_cached_company_profile(tmp_path):
+    cache = tmp_path / "company-profiles.json"
+    company_url = "https://www.gamejob.co.kr/Company/Detail?M=1"
+    cache.write_text(json.dumps({company_url: {
+        "logo_url": "https://img.example/2026\\logo.png",
+        "representative_game": "대표게임",
+    }}, ensure_ascii=False), encoding="utf-8")
+    adapter = GameJobAdapter(client=FakeClient())
+    adapter.profile_cache_path = cache
+    job = JobPosting(id="1", company="A", title="T", url="https://example.com", company_url=company_url)
+    adapter._apply_company_profiles([job], fetch_missing=False)
+    assert job.logo_url == "https://img.example/2026/logo.png"
+    assert job.representative_game == "대표게임"

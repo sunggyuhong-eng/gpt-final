@@ -8,9 +8,9 @@ import {
 } from 'lucide-react'
 import { loadAll } from './data'
 import { pageWindow } from './pagination'
-import type { History, Job, Report, Snapshot, Status } from './types'
+import type { CategoryHistory, History, Job, Report, Snapshot, Status } from './types'
 
-type Data = { snapshot: Snapshot; history: History; report: Report; status: Status }
+type Data = { snapshot: Snapshot; history: History; categoryHistory: CategoryHistory; report: Report; status: Status }
 const nav = [
   ['/', '대시보드', LayoutDashboard], ['/jobs', '채용공고', BriefcaseBusiness],
   ['/categories', '직무별', BarChart3], ['/companies', '회사별', Building2],
@@ -41,7 +41,7 @@ export default function App() {
 
 function Header({ data }: { data: Data }) {
   return <header className="topbar"><div className="topbar-inner">
-    <NavLink className="brand" to="/">게임업계 채용 데이터</NavLink>
+    <NavLink className="brand" to="/">게임잡 채용 데이터</NavLink>
     <nav className="desktop-nav">{nav.map(([to, label]) => <NavLink key={to} to={to} end={to === '/'}>{label}</NavLink>)}</nav>
     <div className="freshness"><i className={data.status.success ? 'ok' : ''} /><span>{formatDate(data.snapshot.collected_at)} 기준</span>{data.snapshot.is_sample && <b>예시</b>}</div>
   </div></header>
@@ -122,20 +122,35 @@ function Jobs({ jobs }: { jobs: Job[] }) {
 
 function Categories({ data }: { data: Data }) {
   const [params, setParams] = useSearchParams()
-  const selected = params.get('major') || ''
-  const selectedSub = params.get('sub') || ''
-  const [page, setPage] = useState(1)
   const counts = countCategories(data.snapshot.jobs)
+  const selected = params.get('major') || counts[0]?.name || ''
+  const selectedSub = params.get('sub') || ''
+  const [subQuery, setSubQuery] = useState('')
+  const [page, setPage] = useState(1)
   const majorJobs = selected ? data.snapshot.jobs.filter(j => majorCategories(j).includes(selected)) : []
   const subCounts = countSubCategories(majorJobs)
+  const visibleSubs = subCounts.filter(item => item.name.toLowerCase().includes(subQuery.trim().toLowerCase()))
   const jobs = selectedSub ? majorJobs.filter(j => subCategories(j).includes(selectedSub)) : majorJobs
   const pageSize = 40, pageCount = Math.max(1, Math.ceil(jobs.length / pageSize))
-  useEffect(() => setPage(1), [selected, selectedSub])
-  return <section><PageTitle eyebrow="JOB CATEGORY" title="직무별 채용" description="게임잡 원문 대분류와 소분류 기준으로 확인하세요." />
-    <div className="taxonomy-note"><b>분류 기준</b><span>공고 제목을 추측 분류하지 않고, 게임잡이 제공한 원문 직무를 그대로 소분류로 보존한 뒤 대분류에 연결합니다.</span></div>
-    <div className="category-grid">{counts.map((x, i) => <button className={selected === x.name ? 'active' : ''} onClick={() => setParams({ major: x.name })} key={x.name}><span className={`category-icon tone-${i % 4}`}><BarChart3 size={19} /></span><div><b>{x.name}</b><strong>{x.count.toLocaleString()}</strong><small>개의 공고</small></div><ChevronRight size={18} /></button>)}</div>
-    {selected && <div className="subcategory-section"><div className="section-heading compact"><div><span>GAMEJOB SUBCATEGORY</span><h2>{selected} 소분류</h2></div><button className="text-button" onClick={() => setParams({ major: selected })}>전체 보기</button></div><div className="subcategory-grid">{subCounts.map(x => <button className={selectedSub === x.name ? 'active' : ''} onClick={() => setParams({ major: selected, sub: x.name })} key={x.name}><span>{x.name}</span><b>{x.count.toLocaleString()}건</b></button>)}</div></div>}
-    <div className="split-grid"><Panel eyebrow="TOTAL TREND" title="전체 채용 추이"><Trend history={data.history} /></Panel><Panel eyebrow="CATEGORY SHARE" title="직무별 현재 공고"><Bars rows={counts} /></Panel></div>
+  const trend = data.categoryHistory.periods.map(item => ({ month: item.period, total_open: (selectedSub ? item.sub[selectedSub] : item.major[selected]) || 0, new_count: null, closed_count: null }))
+  const currentCount = trend.at(-1)?.total_open || jobs.length
+  const previousCount = trend.length > 1 ? trend.at(-2)?.total_open ?? null : null
+  const change = previousCount == null ? null : currentCount - previousCount
+  const categoryChange = (kind: 'major' | 'sub', name: string) => {
+    const periods = data.categoryHistory.periods
+    if (periods.length < 2) return null
+    return (periods.at(-1)?.[kind][name] || 0) - (periods.at(-2)?.[kind][name] || 0)
+  }
+  useEffect(() => { setPage(1); setSubQuery('') }, [selected, selectedSub])
+  return <section className="category-page"><PageTitle eyebrow="JOB CATEGORY" title="직무별 채용" description="대분류에서 소분류를 선택하고 해당 직무의 변화와 공고를 확인하세요." />
+    <div className="taxonomy-note"><b>게임잡 원문 기준</b><span>제목을 추측해 분류하지 않고 게임잡이 제공한 직무를 그대로 사용합니다.</span></div>
+    <div className="category-browser">
+      <aside className="major-rail"><div className="category-browser-title"><span>대분류</span><b>직무 선택</b></div><div className="major-list">{counts.map(x => <button className={selected === x.name ? 'active' : ''} onClick={() => setParams({ major: x.name })} key={x.name}><span>{x.name}</span><span className="category-metric"><b>{x.count.toLocaleString()}</b><ChangeBadge value={categoryChange('major', x.name)} /></span></button>)}</div></aside>
+      <div className="category-browser-content">
+        <section className="subcategory-panel"><div className="category-browser-title"><span>소분류</span><b>{selected}</b></div><label className="mini-search category-search"><Search size={17} /><input value={subQuery} onChange={event => setSubQuery(event.target.value)} placeholder="소분류 직무 검색" />{subQuery && <button onClick={() => setSubQuery('')} aria-label="검색어 지우기">×</button>}</label><div className="subcategory-list"><button className={!selectedSub ? 'active' : ''} onClick={() => setParams({ major: selected })}><span>전체 {selected}</span><span className="category-metric"><b>{majorJobs.length.toLocaleString()}건</b><ChangeBadge value={categoryChange('major', selected)} /></span><ChevronRight size={16} /></button>{visibleSubs.map(x => <button className={selectedSub === x.name ? 'active' : ''} onClick={() => setParams({ major: selected, sub: x.name })} key={x.name}><span>{x.name}</span><span className="category-metric"><b>{x.count.toLocaleString()}건</b><ChangeBadge value={categoryChange('sub', x.name)} /></span><ChevronRight size={16} /></button>)}{!visibleSubs.length && <p>검색 결과가 없습니다.</p>}</div></section>
+        <section className="category-trend-card"><div className="category-trend-head"><div><span>선택 직무 추이</span><h2>{selectedSub || selected}</h2></div><div><strong>{currentCount.toLocaleString()}건</strong><small className={change != null && change < 0 ? 'down' : ''}>{change == null ? '비교 기준 없음' : `직전 기준일 대비 ${change > 0 ? '+' : ''}${change}건`}</small></div></div><Trend history={{ months: trend }} /></section>
+      </div>
+    </div>
     {selected && <><div className="section-heading compact"><div><span>SELECTED JOB</span><h2>{selectedSub || selected} 채용공고</h2></div><b>{jobs.length.toLocaleString()}건</b></div><JobCards jobs={jobs.slice((page - 1) * pageSize, page * pageSize)} detailed /><Pagination page={page} total={pageCount} setPage={setPage} /></>}
   </section>
 }
@@ -147,9 +162,11 @@ function Companies({ data }: { data: Data }) {
   const filtered = companies.filter(([name]) => name.toLowerCase().includes(query.toLowerCase()))
   const jobs = companies.find(x => x[0] === selected)?.[1] || []
   const profile = jobs[0]
+  const companyChanges = new Map<string, number | null>((data.report.statistics?.by_company || []).map((row: {name:string;change:number|null}) => [row.name, row.change]))
+  const selectedChange = companyChanges.get(selected) ?? null
   return <section><PageTitle eyebrow="COMPANY DIRECTORY" title="회사별 채용" description="기업정보와 진행 중인 공고를 함께 확인하세요." count={companies.length} countLabel="개 회사" />
-    <div className="company-layout"><aside className="company-list"><label className="mini-search"><Search size={17} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="회사 검색" /></label><div>{filtered.map(([name, items]) => <button onClick={() => setSelected(name)} className={name === selected ? 'active' : ''} key={name}><Logo name={name} url={items[0].logo_url} /><span><b>{name}</b><small>{items[0].representative_game || '대표게임 정보 없음'}</small></span><strong>{items.length}</strong></button>)}</div></aside>
-      {selected && <article className="company-detail"><div className="company-hero"><Logo name={selected} url={profile?.logo_url || null} /><div><span>COMPANY PROFILE</span><h2>{selected}</h2><p>{profile?.representative_game || '대표게임 정보 없음'}</p></div>{profile?.company_url && <a className="outline-button" href={profile.company_url} target="_blank" rel="noreferrer">게임잡 기업정보 <ExternalLink size={15} /></a>}</div><div className="profile-grid"><Profile label="기업형태" value={profile?.company_type} /><Profile label="설립연도" value={profile?.established_year} /><Profile label="사원수" value={profile?.employee_count} /><Profile label="진행 중인 공고" value={`${jobs.length}건`} highlight /><Profile wide label="대표게임" value={profile?.representative_game} /><Profile wide label="주요사업" value={profile?.main_business} /></div><div className="section-heading compact"><div><span>OPEN POSITIONS</span><h2>진행 중인 공고</h2></div><b>{jobs.length}건</b></div><JobCards jobs={jobs} detailed /></article>}
+    <div className="company-layout"><aside className="company-list"><label className="mini-search"><Search size={17} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="회사 검색" /></label><div>{filtered.map(([name, items]) => <button onClick={() => setSelected(name)} className={name === selected ? 'active' : ''} key={name}><Logo name={name} url={items[0].logo_url} /><span><b>{name}</b><small>{items[0].representative_game || '대표게임 정보 없음'}</small></span><span className="company-list-metric"><strong>{items.length}</strong><ChangeBadge value={companyChanges.get(name) ?? null} /></span></button>)}</div></aside>
+      {selected && <article className="company-detail"><div className="company-hero"><Logo name={selected} url={profile?.logo_url || null} /><div><span>COMPANY PROFILE</span><h2>{selected}</h2><p>{profile?.representative_game || '대표게임 정보 없음'}</p></div><div className="company-change"><small>직전 기준 대비</small><ChangeBadge value={selectedChange} large /></div>{profile?.company_url && <a className="outline-button" href={profile.company_url} target="_blank" rel="noreferrer">게임잡 기업정보 <ExternalLink size={15} /></a>}</div><div className="profile-grid"><Profile label="기업형태" value={profile?.company_type} /><Profile label="설립연도" value={profile?.established_year} /><Profile label="사원수" value={profile?.employee_count} /><Profile label="진행 중인 공고" value={`${jobs.length}건`} highlight /><Profile wide label="대표게임" value={profile?.representative_game} /><Profile wide label="주요사업" value={profile?.main_business} /></div><div className="section-heading compact"><div><span>OPEN POSITIONS</span><h2>진행 중인 공고</h2></div><b>{jobs.length}건</b></div><JobCards jobs={jobs} detailed /></article>}
     </div>
   </section>
 }
@@ -243,13 +260,19 @@ function Profile({ label, value, wide = false, highlight = false }: { label: str
   return <div className={`${wide ? 'wide ' : ''}${highlight ? 'highlight' : ''}`}><span>{label}</span><b>{value || '정보 없음'}</b></div>
 }
 
+function ChangeBadge({ value, large = false }: { value:number|null; large?:boolean }) {
+  if (value == null) return <span className={`change-badge neutral${large ? ' large' : ''}`}>기준 없음</span>
+  if (value === 0) return <span className={`change-badge neutral${large ? ' large' : ''}`}>— 0</span>
+  return <span className={`change-badge ${value > 0 ? 'up' : 'down'}${large ? ' large' : ''}`}>{value > 0 ? '▲' : '▼'} {Math.abs(value).toLocaleString()}</span>
+}
+
 function Select({ value, set, label, values }: { value: string; set: (value: string) => void; label: string; values: (string | null)[] }) {
   return <select value={value} onChange={e => set(e.target.value)}><option value="">{label}</option>{[...new Set(values.filter(Boolean) as string[])].sort().map(v => <option key={v}>{v}</option>)}</select>
 }
 
 function Logo({ name, url }: { name: string; url: string | null }) {
   const [failed, setFailed] = useState(false)
-  return url && !failed ? <img className="logo" src={url} alt="" onError={() => setFailed(true)} /> : <span className="logo fallback">{name.slice(0, 1)}</span>
+  return url && !failed ? <img className="logo" src={url.replaceAll('\\', '/')} alt={`${name} 로고`} loading="lazy" referrerPolicy="no-referrer" onError={() => setFailed(true)} /> : <span className="logo fallback">{name.slice(0, 1)}</span>
 }
 
 function Empty({ title, text, icon: Icon }: { title: string; text: string; icon?: typeof FileText }) {
