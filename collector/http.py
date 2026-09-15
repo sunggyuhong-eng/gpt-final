@@ -6,7 +6,6 @@ import time
 import urllib.robotparser
 from dataclasses import dataclass, field
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
 
 import httpx
 
@@ -22,20 +21,58 @@ class RespectfulClient:
     _robots: dict[str, urllib.robotparser.RobotFileParser] = field(default_factory=dict)
     _client: httpx.Client | None = field(default=None, init=False, repr=False)
 
+    def _fetch_robots_text(self, url: str) -> str:
+        """일반 수집 요청과 같은 HTTP 엔진으로 robots.txt를 최대 3회 확인한다."""
+        last_error: Exception | None = None
+        for attempt in range(1, 4):
+            try:
+                with httpx.Client(
+                    headers={"User-Agent": self.user_agent},
+                    timeout=min(self.timeout, 12.0),
+                    follow_redirects=True,
+                    trust_env=False,
+                ) as client:
+                    response = client.get(url)
+                if response.status_code == 404:
+                    return "User-agent: *\nAllow: /"
+                response.raise_for_status()
+                return response.text
+            except (httpx.HTTPError, OSError) as exc:
+                last_error = exc
+                LOG.warning("robots.txt 확인 %s/3회 실패: %s (%s)", attempt, url, exc)
+                if attempt < 3:
+                    time.sleep(float(attempt))
+        raise RuntimeError(f"robots.txt 확인 재시도 실패: {last_error}")
+
+    @staticmethod
+    def _approved_when_robots_unavailable(host: str) -> bool:
+        allowed = {
+            value.strip().lower()
+            for value in os.getenv("ROBOTS_UNAVAILABLE_ALLOWED_HOSTS", "").split(",")
+            if value.strip()
+        }
+        return host.lower() in allowed
+
     def _robot_parser(self, url: str) -> urllib.robotparser.RobotFileParser:
         parsed = urlparse(url)
         origin = f"{parsed.scheme}://{parsed.netloc}"
         if origin not in self._robots:
             parser = urllib.robotparser.RobotFileParser(f"{origin}/robots.txt")
             try:
-                request = Request(parser.url, headers={"User-Agent": self.user_agent})
-                with urlopen(request, timeout=self.timeout) as response:
-                    body = response.read().decode("utf-8", errors="replace")
+                body = self._fetch_robots_text(parser.url)
                 parser.parse(body.splitlines())
-            except Exception as exc:  # network/invalid robots => fail closed
-                LOG.warning("robots.txt 확인 실패: %s (%s)", origin, exc)
-                parser = urllib.robotparser.RobotFileParser()
-                parser.parse(["User-agent: *", "Disallow: /"])
+            except Exception as exc:
+                if self._approved_when_robots_unavailable(parsed.netloc):
+                    LOG.warning(
+                        "robots.txt를 확인할 수 없어 승인된 도메인 예외 정책을 적용합니다: %s (%s)",
+                        origin,
+                        exc,
+                    )
+                    parser.parse(["User-agent: *", "Allow: /"])
+                else:
+                    LOG.warning("robots.txt 확인 실패로 안전하게 차단합니다: %s (%s)", origin, exc)
+                    parser = urllib.robotparser.RobotFileParser()
+                    parser.parse(["User-agent: *", "Disallow: /"])
             self._robots[origin] = parser
         return self._robots[origin]
 

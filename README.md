@@ -128,6 +128,7 @@ GitHub 예약 작업은 부하에 따라 다소 늦게 시작될 수 있습니�
 - `data/latest.json`의 `collected_at`이 마지막 정상 수집 시각입니다.
 - 채용공고가 0건이면 새 `latest.json`을 저장하지 않아 기존 정상 화면을 보호합니다.
 - `ANTHROPIC_API_KEY`가 없으면 `pending_api_key` 상태만 기록하며 대체 문장을 만들지 않습니다.
+- 게임잡처럼 사용 허가가 기록된 도메인은 `robots.txt` 연결을 3회 재시도합니다. 그래도 네트워크로 확인할 수 없을 때만 `ROBOTS_UNAVAILABLE_ALLOWED_HOSTS`의 승인 도메인 정책을 사용하며, 정상 응답에서 `Disallow`가 확인되면 수집을 중단합니다.
 
 상세 대응표는 [운영 및 오류 대응 안내서](docs/OPERATIONS.md)를 참고하세요.
 
