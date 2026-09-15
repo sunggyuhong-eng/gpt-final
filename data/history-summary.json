@@ -3,6 +3,12 @@
   "granularity": "daily",
   "months": [
     {
+      "month": "2026-09",
+      "total_open": 1554,
+      "new_count": null,
+      "closed_count": null
+    },
+    {
       "month": "2026-09-02",
       "total_open": 1589,
       "new_count": null,

@@ -1,13 +1,18 @@
 {
-  "started_at": "2026-09-15T09:04:59.010369+09:00",
+  "started_at": "2026-09-15T14:02:01.831761+09:00",
   "sources": [
     {
       "name": "게임잡",
       "status": "success",
-      "count": 1551
+      "count": 1554
+    },
+    {
+      "name": "게임잡 업계뉴스(리포트 전용)",
+      "status": "success",
+      "count": 652
     }
   ],
   "is_sample": false,
-  "finished_at": "2026-09-15T09:07:20.275909+09:00",
+  "finished_at": "2026-09-15T14:06:16.107123+09:00",
   "success": true
 }
