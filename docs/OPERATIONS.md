@@ -15,9 +15,9 @@
 | `robots.txt에서 수집을 허용하지 않는 URL` | 자동 수집이 허용되지 않음 | 우회하지 말고 RSS·API·CSV 방식 검토 |
 | `robots.txt 확인 실패` | robots 파일에 접근할 수 없음 | 일시 장애인지 확인 후 다음 날 재시도. 계속되면 해당 어댑터 중지 |
 | `목록 선택자와 일치하는 공고가 없습니다` | 사이트 HTML 구조 변경 가능성 | `collector/adapters/gamejob.py` 선택자 수정 필요 |
-| `pending_api_key` | AI 키가 없거나 전달되지 않음 | 저장소 Secret 이름이 정확히 `ANTHROPIC_API_KEY`인지 확인 |
-| Claude 인증 오류 | 키 만료·오입력 | 노출된 키를 폐기하고 Secret을 새 키로 교체한 뒤 수동 `monthly`, `force=true` 실행 |
-| Claude 한도 오류 | 결제 또는 사용 한도 | Anthropic 계정 한도를 확인한 뒤 수동 재실행 |
+| `pending_api_key` | AI 키가 없거나 전달되지 않음 | 저장소 Secret 이름이 정확히 `OPENAI_API_KEY`인지 확인 |
+| GPT 인증 오류 | 키 만료·오입력 | 노출된 키를 폐기하고 Secret을 새 키로 교체한 뒤 `Generate AI Report` 실행 |
+| GPT 한도 오류 | 결제 또는 사용 한도 | OpenAI Platform 사용 한도를 확인한 뒤 수동 재실행 |
 | Pages 404 | Pages 소스 또는 배포 실패 | Settings → Pages → Source가 GitHub Actions인지 확인 |
 | 화면은 열리지만 JSON 오류 | `data`가 빌드에 포함되지 않음 | Deploy workflow의 `npm run build` 로그와 `dist/data` 확인 |
 | 커밋 권한 오류 | Actions 쓰기 권한 없음 | Settings → Actions → General → Read and write permissions |
