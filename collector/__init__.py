@@ -1,2 +1,1 @@
-"""Collection and analysis package for Game Hiring Radar."""
-
+"""게임업계 채용 데이터 수집·분석 패키지."""

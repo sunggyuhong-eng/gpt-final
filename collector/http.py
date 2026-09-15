@@ -6,6 +6,7 @@ import time
 import urllib.robotparser
 from dataclasses import dataclass, field
 from urllib.parse import urlparse
+from urllib.request import Request, urlopen
 
 import httpx
 
@@ -27,7 +28,10 @@ class RespectfulClient:
         if origin not in self._robots:
             parser = urllib.robotparser.RobotFileParser(f"{origin}/robots.txt")
             try:
-                parser.read()
+                request = Request(parser.url, headers={"User-Agent": self.user_agent})
+                with urlopen(request, timeout=self.timeout) as response:
+                    body = response.read().decode("utf-8", errors="replace")
+                parser.parse(body.splitlines())
             except Exception as exc:  # network/invalid robots => fail closed
                 LOG.warning("robots.txt 확인 실패: %s (%s)", origin, exc)
                 parser = urllib.robotparser.RobotFileParser()

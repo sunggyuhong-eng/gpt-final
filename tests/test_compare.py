@@ -1,6 +1,5 @@
 from collector.models import JobPosting
-from collector.pipeline import compare, dedupe_jobs, dedupe_news
-from collector.models import NewsItem
+from collector.pipeline import compare, dedupe_jobs
 
 
 def job(job_id: str, company: str = "A", categories=None):
@@ -41,11 +40,3 @@ def test_dedupe_job_merges_categories():
     merged = dedupe_jobs([a, b])
     assert len(merged) == 1
     assert merged[0]["categories"] == ["QA", "프로그래밍"]
-
-
-def test_similar_news_grouped_and_sources_preserved():
-    a = NewsItem(id="a", source="A", title="게임사 신작 RPG 출시 계획 공개", url="https://a.example/1")
-    b = NewsItem(id="b", source="B", title="게임사, 신작 RPG 출시 계획 공개", url="https://b.example/2")
-    result = dedupe_news([a, b])
-    assert len(result) == 1
-    assert len(result[0]["related_sources"]) == 2

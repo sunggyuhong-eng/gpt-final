@@ -5,11 +5,10 @@ import logging
 import os
 from collections import Counter, defaultdict
 from datetime import datetime
-from difflib import SequenceMatcher
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from collector.adapters import GameJobAdapter, NEWS_ADAPTERS
+from collector.adapters import GameJobAdapter, GameJobNewsAdapter
 from collector.models import JobPosting, NewsItem
 from collector.normalize import career_bucket
 from collector.normalize import load_yaml
@@ -38,29 +37,16 @@ def dedupe_jobs(jobs: list[JobPosting]) -> list[dict]:
         if current:
             item["categories"] = sorted(set(current["categories"] + item["categories"]))
             item["original_categories"] = sorted(set(current["original_categories"] + item["original_categories"]))
+            item["job_major_categories"] = sorted(set(current.get("job_major_categories", []) + item.get("job_major_categories", [])))
+            item["job_subcategories"] = sorted(set(current.get("job_subcategories", []) + item.get("job_subcategories", [])))
         merged[job.id] = item
     return sorted(merged.values(), key=lambda x: (x["company"], x["title"], x["id"]))
 
 
-def _title_key(title: str) -> str:
-    return "".join(ch.lower() for ch in title if ch.isalnum())
-
-
 def dedupe_news(news: list[NewsItem]) -> list[dict]:
-    groups: list[dict] = []
-    for item in news:
-        candidate = item.to_dict()
-        if not candidate.get("related_sources"):
-            candidate["related_sources"] = [{"source": item.source, "url": item.url}]
-        key = _title_key(item.title)
-        match = next((g for g in groups if SequenceMatcher(None, key, _title_key(g["title"])).ratio() >= 0.86), None)
-        if match:
-            sources = match.setdefault("related_sources", [])
-            if not any(x["url"] == item.url for x in sources):
-                sources.append({"source": item.source, "url": item.url})
-        else:
-            groups.append(candidate)
-    return groups
+    """동일 기사 고유번호를 한 번만 보존한다."""
+    merged = {item.id: item.to_dict() for item in news}
+    return sorted(merged.values(), key=lambda item: (item.get("published_at") or "", item["id"]), reverse=True)
 
 
 def _count(jobs: list[dict], key: str, multi: bool = False) -> dict[str, int]:
@@ -146,7 +132,7 @@ def previous_month_file(month: str) -> Path | None:
     return path if path.exists() else None
 
 
-def collect_all(enrich_companies: bool = False) -> tuple[list[dict], list[dict], dict]:
+def collect_all(enrich_companies: bool = False, include_report_news: bool = False) -> tuple[list[dict], list[dict], dict]:
     status = {"started_at": datetime.now(SEOUL).isoformat(), "sources": [], "is_sample": False}
     policy = load_yaml("source_policy.yml").get("sources", {})
     jobs: list[JobPosting] = []
@@ -161,17 +147,13 @@ def collect_all(enrich_companies: bool = False) -> tuple[list[dict], list[dict],
             status["sources"].append({"name": "게임잡", "status": "failed", "count": 0, "error": str(exc)})
 
     news: list[NewsItem] = []
-    for adapter_class in NEWS_ADAPTERS:
-        if not policy.get(adapter_class.name, {}).get("approved", False):
-            status["sources"].append({"name": adapter_class.name, "status": "disabled", "count": 0, "error": policy.get(adapter_class.name, {}).get("note", "이용약관 검토 필요")})
-            continue
+    if include_report_news:
         try:
-            items = adapter_class().collect()
-            news.extend(items)
-            status["sources"].append({"name": adapter_class.name, "status": "success", "count": len(items)})
+            news = GameJobNewsAdapter().collect()
+            status["sources"].append({"name": "게임잡 업계뉴스(리포트 전용)", "status": "success", "count": len(news)})
         except Exception as exc:
-            LOG.exception("%s 수집 실패", adapter_class.name)
-            status["sources"].append({"name": adapter_class.name, "status": "failed", "count": 0, "error": str(exc)})
+            LOG.exception("월간 리포트용 업계뉴스 수집 실패")
+            status["sources"].append({"name": "게임잡 업계뉴스(리포트 전용)", "status": "failed", "count": 0, "error": str(exc)})
     status["finished_at"] = datetime.now(SEOUL).isoformat()
     status["success"] = bool(jobs)
     return dedupe_jobs(jobs), dedupe_news(news), status
@@ -180,7 +162,7 @@ def collect_all(enrich_companies: bool = False) -> tuple[list[dict], list[dict],
 def run(mode: str = "daily", force: bool = False, now: datetime | None = None) -> dict:
     now = now or datetime.now(SEOUL)
     day, month = now.strftime("%Y-%m-%d"), now.strftime("%Y-%m")
-    jobs, news, status = collect_all(enrich_companies=mode == "monthly")
+    jobs, news, status = collect_all(enrich_companies=mode == "monthly", include_report_news=mode == "monthly")
     if not jobs:
         status["message"] = "채용공고 수집 실패로 기존 정상 데이터를 유지했습니다."
         write_json(ROOT / "data" / "collection-status.json", status)
@@ -190,7 +172,7 @@ def run(mode: str = "daily", force: bool = False, now: datetime | None = None) -
         status["message"] = "오늘 스냅샷이 이미 존재하여 건너뛰었습니다. force=true로 재수집할 수 있습니다."
         write_json(ROOT / "data" / "collection-status.json", status)
         return status
-    snapshot = {"schema_version": 1, "period": day, "collected_at": status["finished_at"], "is_sample": False, "jobs": jobs, "news": news}
+    snapshot = {"schema_version": 1, "period": day, "collected_at": status["finished_at"], "is_sample": False, "jobs": jobs}
     write_json(daily_path, snapshot)
     write_json(ROOT / "data" / "latest.json", snapshot)
     if mode == "monthly":
@@ -204,7 +186,12 @@ def run(mode: str = "daily", force: bool = False, now: datetime | None = None) -
             previous_snapshot = read_json(prev_path, {}) if prev_path else {}
             previous = None if previous_snapshot.get("is_sample") else previous_snapshot.get("jobs")
             stats = compare(jobs, previous)
-            write_json(ROOT / "data" / "reports" / f"{month}.json", {"period": month, "is_sample": False, "status": "analysis_pending", "statistics": stats, "news": news})
+            job_examples = [
+                {key: job.get(key) for key in ("id", "company", "title", "url", "categories", "career", "location", "employment_type")}
+                for job in jobs[:50]
+            ]
+            write_json(ROOT / "data" / "news" / f"{month}.json", {"period": month, "collected_at": status["finished_at"], "items": news})
+            write_json(ROOT / "data" / "reports" / f"{month}.json", {"period": month, "is_sample": False, "status": "analysis_pending", "statistics": stats, "job_examples": job_examples, "news": news})
             update_history(month, stats)
     write_json(ROOT / "data" / "collection-status.json", status)
     return status

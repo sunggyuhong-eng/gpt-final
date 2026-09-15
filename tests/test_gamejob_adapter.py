@@ -32,7 +32,8 @@ def test_adapter_parses_current_listing_structure():
     assert len(jobs) == 1
     assert jobs[0].company == "넥슨코리아"
     assert jobs[0].id.endswith(":101")
-    assert jobs[0].categories == ["프로그래밍"]
+    assert jobs[0].categories == ["게임제작"]
+    assert jobs[0].job_subcategories == ["서버"]
     assert jobs[0].career == "경력3년↑"
     assert jobs[0].location == "서울 > 강남구"
     assert jobs[0].employment_type == "정규직"

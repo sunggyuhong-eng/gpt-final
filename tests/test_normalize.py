@@ -1,8 +1,12 @@
-from collector.normalize import canonical_url, career_bucket, normalize_categories, normalize_company, normalize_date, stable_id
+from collector.normalize import canonical_url, career_bucket, normalize_categories, normalize_company, normalize_date, split_job_categories, stable_id
 
 
 def test_job_can_have_multiple_categories():
-    assert normalize_categories("서버 개발자", "데이터 분석") == ["프로그래밍", "데이터·분석"]
+    assert normalize_categories("게임개발(클라이언트)", "QA·테스터") == ["게임제작", "게임운영·QA"]
+
+
+def test_source_subcategories_are_preserved():
+    assert split_job_categories("게임개발(모바일); 게임AI 개발") == ["게임개발(모바일)", "게임AI 개발"]
 
 
 def test_unknown_job_is_other():

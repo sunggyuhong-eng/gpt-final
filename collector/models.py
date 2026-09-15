@@ -12,7 +12,10 @@ class JobPosting:
     url: str
     categories: list[str] = field(default_factory=list)
     original_categories: list[str] = field(default_factory=list)
+    job_major_categories: list[str] = field(default_factory=list)
+    job_subcategories: list[str] = field(default_factory=list)
     career: str | None = None
+    education: str | None = None
     employment_type: str | None = None
     location: str | None = None
     posted_at: str | None = None
@@ -25,6 +28,8 @@ class JobPosting:
     main_business: str | None = None
     established_year: str | None = None
     employee_count: str | None = None
+    company_ceo: str | None = None
+    company_homepage: str | None = None
     collected_at: str = ""
     source: str = "게임잡"
     status: str = "open"

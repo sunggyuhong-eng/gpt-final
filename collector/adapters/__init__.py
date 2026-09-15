@@ -1,5 +1,4 @@
 from .gamejob import GameJobAdapter
-from .news import NEWS_ADAPTERS
+from .news import GameJobNewsAdapter
 
-__all__ = ["GameJobAdapter", "NEWS_ADAPTERS"]
-
+__all__ = ["GameJobAdapter", "GameJobNewsAdapter"]

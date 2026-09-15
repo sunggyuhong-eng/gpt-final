@@ -11,7 +11,7 @@ from bs4 import BeautifulSoup
 
 from collector.adapters.base import Adapter
 from collector.models import JobPosting
-from collector.normalize import normalize_categories, normalize_company, stable_id
+from collector.normalize import normalize_categories, normalize_company, normalize_subcategories, split_job_categories, stable_id
 
 LOG = logging.getLogger(__name__)
 
@@ -63,12 +63,15 @@ class GameJobAdapter(Adapter):
                 job_id = stable_id(url, row.get_text(" ", strip=True))
                 onclick = link.get("onclick", "")
                 tracked = re.findall(r"IsNullOrWhiteSpace\('([^']*)'\)", onclick)
-                original = [x.strip() for x in (tracked[0].split(",") if tracked else []) if x.strip()]
-                categories = normalize_categories(" ".join(original), link.get_text(" ", strip=True))
+                original = split_job_categories(tracked[0] if tracked else None)
+                subcategories = normalize_subcategories(*original)
+                categories = normalize_categories(*original)
                 if job_id in by_id:
                     current = by_id[job_id]
                     current.categories = sorted(set(current.categories + categories))
                     current.original_categories = sorted(set(current.original_categories + original))
+                    current.job_major_categories = sorted(set(current.job_major_categories + categories))
+                    current.job_subcategories = sorted(set(current.job_subcategories + subcategories))
                     continue
                 company_link = row.select_one(".company a[href*='/Company/Detail']")
                 company_node = row.select_one(".company strong")
@@ -83,6 +86,8 @@ class GameJobAdapter(Adapter):
                     url=url,
                     categories=categories,
                     original_categories=original,
+                    job_major_categories=categories,
+                    job_subcategories=subcategories,
                     career=info[0] if info else None,
                     employment_type=info[-1] if info else None,
                     location=info[2] if len(info) > 2 else None,

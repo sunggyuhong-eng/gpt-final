@@ -3,18 +3,6 @@ sources:
   게임잡:
     approved: true
     note: "2026-09-14 사용자 확인: 유료 기업회원으로서 공개 대시보드 수집·가공 사용 허가 확보"
-  게임메카:
-    approved: false
-    note: "robots.txt 기술 확인 완료, 이용약관 수동 검토 필요"
-  인벤:
-    approved: false
-    note: "robots.txt 기술 확인 완료, 이용약관 수동 검토 필요"
-  디스이즈게임:
-    approved: false
-    note: "robots.txt 기술 확인 완료, 이용약관 수동 검토 필요"
   게임잡 업계뉴스:
     approved: true
-    note: "robots.txt 기술 확인 완료, 이용약관 수동 검토 필요"
-  PLUDI:
-    approved: false
-    note: "robots.txt 기술 확인 완료, 이용약관 수동 검토 필요"
+    note: "월간 리포트 근거용으로 제목·짧은 요약·게시일·원문 링크만 수집"

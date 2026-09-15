@@ -23,11 +23,39 @@ def normalize_company(name: str | None) -> str:
     return aliases.get(value, value or "회사명 미확인")
 
 
-def normalize_categories(*texts: str | None) -> list[str]:
-    merged = " ".join(x or "" for x in texts).lower()
-    mapping = load_yaml("job_categories.yml")["categories"]
-    found = [category for category, words in mapping.items() if category != "기타" and any(w.lower() in merged for w in words)]
+def split_job_categories(*values: str | None) -> list[str]:
+    """게임잡이 제공한 직무명을 보존하며 목록 구분자만 정리한다."""
+    result: list[str] = []
+    for value in values:
+        for item in re.split(r"[;,]", value or ""):
+            clean = re.sub(r"\s+", " ", item).strip()
+            if clean and clean not in result:
+                result.append(clean)
+    return result
+
+
+def normalize_categories(*source_categories: str | None) -> list[str]:
+    """게임잡 원문 소분류를 설정 파일의 대분류로 매핑한다.
+
+    제목 키워드로 별도 직무를 추측하지 않으므로 원문에 없는 직무가 생기지 않는다.
+    """
+    values = split_job_categories(*source_categories)
+    mapping = load_yaml("job_categories.yml").get("major_categories", {})
+    reverse = {minor: major for major, minors in mapping.items() for minor in minors}
+    major_names = set(mapping)
+    found: list[str] = []
+    for value in values:
+        major = value if value in major_names else reverse.get(value)
+        if major and major not in found:
+            found.append(major)
     return found or ["기타"]
+
+
+def normalize_subcategories(*source_categories: str | None) -> list[str]:
+    """추적값에 함께 섞여 온 대분류명은 빼고 실제 소분류만 반환한다."""
+    values = split_job_categories(*source_categories)
+    major_names = set(load_yaml("job_categories.yml").get("major_categories", {}))
+    return [value for value in values if value not in major_names]
 
 
 def normalize_date(value: str | None) -> str | None:
