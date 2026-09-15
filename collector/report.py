@@ -23,7 +23,7 @@ def generate(month: str) -> dict:
         payload.update({"status": "pending_api_key", "error": "ANTHROPIC_API_KEY가 없어 Claude 리포트를 생성하지 않았습니다.", "markdown": None})
         write_json(report_path, payload)
         write_json(ROOT / "data" / "reports" / "latest.json", payload)
-        return payload
+        raise RuntimeError("ANTHROPIC_API_KEY가 없습니다. GitHub Actions Secret을 확인하세요.")
     model = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-5")
     response = Anthropic(api_key=api_key).messages.create(
         model=model,
@@ -68,22 +68,19 @@ def build_methodology(payload: dict, analysis_input: dict | None = None) -> dict
             "채용 변화가 큰 회사 및 프로젝트·경영 이슈 뉴스를 우선 선택",
             "직접 근거·관련 가능성·근거 부족을 구분하고 인과를 단정하지 않음",
         ],
-        "input_description": "집계 통계(회사·직무·경력·지역·고용형태), 원문 링크가 있는 대표 공고 최대 50건, 관련도 순 게임잡 뉴스 최대 120건",
+        "input_description": "전체 공고와 전체 뉴스의 메타데이터·원문 링크, 회사·직무·경력·지역·고용형태 전체 집계",
     }
 
 
 def _compact_payload(payload: dict) -> dict:
-    """모델 입력에 필요한 집계·출처만 남겨 토큰과 개인정보 노출을 줄인다."""
+    """고유번호 목록만 제거하고 모든 집계·공고·뉴스 근거를 모델에 전달한다."""
     stats = dict(payload.get("statistics") or {})
     for key in ("new_ids", "maintained_ids", "closed_ids"):
         stats.pop(key, None)
-    for key in ("by_company", "by_category", "by_career", "by_location", "by_employment_type", "company_category"):
-        if isinstance(stats.get(key), list):
-            stats[key] = stats[key][:100]
     return {
         "period": payload.get("period"),
         "statistics": stats,
-        "job_examples": (payload.get("job_examples") or [])[:50],
+        "job_examples": payload.get("job_examples") or [],
         "news": _select_relevant_news(payload.get("news") or [], stats),
         "interpretation_rule": {
             "confirmed": "기사에 채용 확대·축소가 직접 명시되고 데이터 변화도 일치",
@@ -117,7 +114,7 @@ def _select_relevant_news(news: list[dict], stats: dict) -> list[dict]:
         issue_score = 3 if item.get("issue_type") in important_issues else 0
         return company_score + issue_score, item.get("published_at") or ""
 
-    selected = sorted(news, key=score, reverse=True)[:120]
+    selected = sorted(news, key=score, reverse=True)
     return [
         {key: item.get(key) for key in ("source", "title", "url", "published_at", "summary", "issue_type")}
         for item in selected

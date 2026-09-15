@@ -2926,29 +2926,5 @@
     "company_type": "벤처기업",
     "representative_game": "-",
     "main_business": "퍼블리싱 위탁 , 서비스 운영 , 종합 마케팅"
-  },
-  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=11528682": {
-    "logo_url": "https://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2020/12/GJ_CoLogo_11528682.png?639029591970000000",
-    "established_year": "2000년",
-    "employee_count": "151 명",
-    "company_type": "중소기업(300명미만)",
-    "representative_game": "라그나로크모바일/위빌드스토리/퍼즐앤드래곤",
-    "main_business": "LG전자 사이트 운영, 모바일게임 개발 및 공급"
-  },
-  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=45159601": {
-    "logo_url": "https://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2024/9/GJ_CoLogo_45159601.png?638627069780000000",
-    "established_year": "-",
-    "employee_count": "-",
-    "company_type": "벤처기업",
-    "representative_game": "-",
-    "main_business": "-"
-  },
-  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=51444273": {
-    "logo_url": "https://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2026/5/GJ_CoLogo_51444273.jpg?639147077320000000",
-    "established_year": "-",
-    "employee_count": "-",
-    "company_type": "대기업 계열사·자회사",
-    "representative_game": "-",
-    "main_business": "-"
   }
 }

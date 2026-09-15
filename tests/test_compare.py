@@ -17,6 +17,9 @@ def test_compare_without_baseline():
     assert result["has_baseline"] is False
     assert result["baseline_message"] == "기준 데이터 없음"
     assert result["new_count"] is None
+    assert result["by_company"] == [{"name": "A", "current": 1, "previous": None, "change": None}]
+    assert result["by_category"] == [{"name": "프로그래밍", "current": 1, "previous": None, "change": None}]
+    assert result["company_category"] == []
 
 
 def test_compare_new_maintained_closed():
@@ -47,10 +50,10 @@ def test_dedupe_job_merges_categories():
 
 def test_category_history_contains_major_and_subcategory_counts(tmp_path, monkeypatch):
     monkeypatch.setattr(pipeline, "ROOT", tmp_path)
-    daily = tmp_path / "data" / "daily"
-    daily.mkdir(parents=True)
-    (daily / "2026-09-01.json").write_text(json.dumps({
-        "period": "2026-09-01", "is_sample": False,
+    snapshots = tmp_path / "data" / "snapshots"
+    snapshots.mkdir(parents=True)
+    (snapshots / "2026-09.json").write_text(json.dumps({
+        "period": "2026-09", "is_sample": False,
         "jobs": [
             {"job_major_categories": ["게임제작"], "job_subcategories": ["게임기획"]},
             {"job_major_categories": ["게임제작"], "job_subcategories": ["서버"]},
@@ -58,5 +61,6 @@ def test_category_history_contains_major_and_subcategory_counts(tmp_path, monkey
     }, ensure_ascii=False), encoding="utf-8")
     pipeline.update_category_history()
     result = json.loads((tmp_path / "data" / "category-history.json").read_text(encoding="utf-8"))
+    assert result["granularity"] == "monthly"
     assert result["periods"][0]["major"]["게임제작"] == 2
     assert result["periods"][0]["sub"]["게임기획"] == 1

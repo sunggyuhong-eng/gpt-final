@@ -1,18 +1,14 @@
 {
-  "started_at": "2026-09-15T14:02:01.831761+09:00",
+  "started_at": "2026-09-15T14:24:55.684030+09:00",
+  "finished_at": "2026-09-15T14:24:55.684030+09:00",
+  "success": true,
+  "is_sample": true,
+  "message": "예시 비교 기준: 2026-08 → 2026-09",
   "sources": [
     {
-      "name": "게임잡",
+      "name": "사용자 제공 월간 JSON",
       "status": "success",
       "count": 1554
-    },
-    {
-      "name": "게임잡 업계뉴스(리포트 전용)",
-      "status": "success",
-      "count": 652
     }
-  ],
-  "is_sample": false,
-  "finished_at": "2026-09-15T14:06:16.107123+09:00",
-  "success": true
+  ]
 }

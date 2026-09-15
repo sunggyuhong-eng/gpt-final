@@ -66,6 +66,14 @@ def _delta(current: dict[str, int], previous: dict[str, int]) -> list[dict]:
     )
 
 
+def _no_baseline(current: dict[str, int]) -> list[dict]:
+    """현재 집계는 보여주되, 없는 이전 데이터를 0으로 오인하지 않는다."""
+    return [
+        {"name": name, "current": count, "previous": None, "change": None}
+        for name, count in sorted(current.items(), key=lambda item: (-item[1], item[0]))
+    ]
+
+
 def _career_counts(jobs: list[dict]) -> dict[str, int]:
     return dict(Counter(career_bucket(job.get("career")) for job in jobs).most_common())
 
@@ -82,12 +90,12 @@ def compare(current_jobs: list[dict], previous_jobs: list[dict] | None) -> dict:
             "total_open": len(current), "previous_total": None, "change": None, "change_rate": None,
             "new_count": None, "maintained_count": None, "closed_count": None,
             "new_ids": [], "maintained_ids": [], "closed_ids": [],
-            "by_company": _delta(_count(current_jobs, "company"), {}),
-            "by_category": _delta(_count(current_jobs, "categories", True), {}),
-            "by_career": _delta(_career_counts(current_jobs), {}),
-            "by_location": _delta(_count(current_jobs, "location"), {}),
-            "by_employment_type": _delta(_count(current_jobs, "employment_type"), {}),
-            "company_category": cross_delta(current_jobs, []), "reposted": [],
+            "by_company": _no_baseline(_count(current_jobs, "company")),
+            "by_category": _no_baseline(_count(current_jobs, "categories", True)),
+            "by_career": _no_baseline(_career_counts(current_jobs)),
+            "by_location": _no_baseline(_count(current_jobs, "location")),
+            "by_employment_type": _no_baseline(_count(current_jobs, "employment_type")),
+            "company_category": [], "reposted": [],
         }
     previous = {x["id"]: x for x in previous_jobs}
     new_ids = sorted(current.keys() - previous.keys())
@@ -189,7 +197,7 @@ def run(mode: str = "daily", force: bool = False, now: datetime | None = None) -
             stats = compare(jobs, previous)
             job_examples = [
                 {key: job.get(key) for key in ("id", "company", "title", "url", "categories", "career", "location", "employment_type")}
-                for job in jobs[:50]
+                for job in jobs
             ]
             write_json(ROOT / "data" / "news" / f"{month}.json", {"period": month, "collected_at": status["finished_at"], "items": news})
             write_json(ROOT / "data" / "reports" / f"{month}.json", {"period": month, "is_sample": False, "status": "analysis_pending", "statistics": stats, "job_examples": job_examples, "news": news})
@@ -210,16 +218,18 @@ def update_history(month: str, stats: dict) -> None:
 
 
 def update_category_history() -> None:
-    """브라우저가 큰 일별 파일을 모두 받지 않도록 직무별 시계열만 따로 집계한다."""
+    """공식 월간 스냅샷만 사용해 직무별 월간 시계열을 만든다."""
     periods: list[dict] = []
-    for path in sorted((ROOT / "data" / "daily").glob("*.json")):
+    has_sample = False
+    for path in sorted((ROOT / "data" / "snapshots").glob("*.json")):
         snapshot = read_json(path, {})
         jobs = snapshot.get("jobs") or []
-        if snapshot.get("is_sample") or not jobs:
+        if not jobs:
             continue
+        has_sample = has_sample or bool(snapshot.get("is_sample"))
         periods.append({
             "period": snapshot.get("period") or path.stem,
             "major": _count(jobs, "job_major_categories", True) if any("job_major_categories" in job for job in jobs) else _count(jobs, "categories", True),
             "sub": _count(jobs, "job_subcategories", True) if any("job_subcategories" in job for job in jobs) else _count(jobs, "original_categories", True),
         })
-    write_json(ROOT / "data" / "category-history.json", {"is_sample": False, "periods": periods})
+    write_json(ROOT / "data" / "category-history.json", {"is_sample": has_sample, "granularity": "monthly", "periods": periods})
