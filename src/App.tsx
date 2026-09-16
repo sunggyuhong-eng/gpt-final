@@ -196,22 +196,46 @@ function Companies({ data }: { data: Data }) {
 
 function Reports({ data }: { data: Data }) {
   const report = data.report
+  const analysis = report.analysis
   const stats = report.statistics || {}
   const jobMoves = movementRows(stats.by_category || [])
   const companyMoves = movementRows(stats.by_company || [])
   const careerMoves = movementRows(stats.by_career || [])
   const emptyText = '이번 달 해설을 준비하고 있습니다. 통계와 그래프는 정상적으로 확인할 수 있습니다.'
   return <section><PageTitle eyebrow="MONTHLY INSIGHT" title="월간 리포트" description={`${report.period} 채용시장 분석을 확인하세요.`} />
-    <div className="report-hero"><div><FileText size={28} /><span>{report.status === 'complete' ? '분석 완료' : '통계 공개 · 해설 준비 중'}</span><h2>{report.period.replace('-', '년 ')}월<br />게임업계 채용 리포트</h2><p>{report.comparison_label ? `${report.comparison_label} 채용 변화와 ` : '채용 변화와 '}업계 뉴스를 함께 검토해 강세·약세와 관찰 포인트를 분석합니다.</p></div>{report.markdown && <a className="primary-button" href={`reports/${report.period}.md`} download>Markdown 다운로드 <ArrowUpRight size={18} /></a>}</div>
+    <div className="report-hero"><div><FileText size={28} /><span>{analysis ? '분석 완료' : '통계 공개 · 해설 준비 중'}</span><h2>{report.period.replace('-', '년 ')}월<br />게임업계 채용 리포트</h2><p>{analysis?.outlook || (report.comparison_label ? `${report.comparison_label} 채용 변화와 업계 뉴스를 함께 검토합니다.` : '채용 변화와 업계 뉴스를 함께 검토합니다.')}</p></div>{report.markdown && <a className="primary-button" href={`reports/${report.period}.md`} download>리포트 다운로드 <ArrowUpRight size={18} /></a>}</div>
     {report.is_sample && <div className="status-strip warning">화면 검증용 예시 리포트입니다.</div>}
     <div className="report-kpis"><Kpi icon={BriefcaseBusiness} label="전체 공개 공고" value={`${(stats.total_open ?? 0).toLocaleString()}건`} sub={`전월 대비 ${fmtChange(stats.change)}`} primary /><Kpi icon={Sparkles} label="신규 공고" value={`${stats.new_count ?? '-'}건`} sub="이번 기간 새로 확인" /><Kpi icon={Clock3} label="종료 공고" value={`${stats.closed_count ?? '-'}건`} sub="이전 기간 대비 종료" /><Kpi icon={CheckCircle2} label="유지 공고" value={`${stats.maintained_count ?? '-'}건`} sub="두 기간 모두 확인" /></div>
-    <div className="report-chart-grid"><Panel eyebrow="MARKET SIZE" title="전체 공고 비교"><ComparisonBars previous={stats.previous_total} current={stats.total_open} labels={[report.baseline_period || '이전', report.current_period || report.period]} /></Panel><Panel eyebrow="JOB MOMENTUM" title="직무 강세·약세"><DeltaBars rows={jobMoves.slice(0, 10)} /></Panel><Panel eyebrow="COMPANY MOVERS" title="회사별 주요 변동"><DeltaBars rows={companyMoves.slice(0, 10)} /></Panel><Panel eyebrow="CAREER MIX" title="경력별 변화"><DeltaBars rows={careerMoves.slice(0, 8)} /></Panel></div>
-    <div className="section-heading compact"><div><span>NEWS & HIRING SIGNAL</span><h2>뉴스와 채용 변화</h2></div><b>{report.news?.length || 0}건</b></div>
-    {(report.news || []).length ? <NewsCards news={(report.news || []).slice(0, 8)} /> : <div className="data-warning"><AlertCircle size={20} /><div><b>수집된 뉴스가 없습니다.</b><p>뉴스 근거가 없으므로 회사 공고 변화의 원인을 추정하지 않습니다. 다음 월간 수집에서 뉴스가 확보되면 관련 가능성을 함께 표시합니다.</p></div></div>}
-    <div className="section-heading compact"><div><span>ANALYST COMMENT</span><h2>시장 해설</h2></div></div>
-    {report.markdown ? <Panel className="report-panel"><article className="report"><ReportMarkdown markdown={report.markdown} /></article></Panel> : <Empty icon={Sparkles} title="시장 해설을 준비하고 있어요" text={emptyText} />}
+    <div className="report-overview-grid"><Panel eyebrow="MARKET SIZE" title="전체 공고 비교"><ComparisonBars previous={stats.previous_total} current={stats.total_open} labels={[report.baseline_period || '이전 비교 데이터 없음', report.current_period || report.period]} /></Panel>{analysis ? <article className="analyst-summary"><span>ANALYST VIEW</span><h2>{analysis.outlook}</h2><p>{analysis.market_comment}</p><ul>{analysis.highlights.map(item => <li key={item}>{item}</li>)}</ul></article> : <Empty icon={Sparkles} title="시장 해설을 준비하고 있어요" text={emptyText} />}</div>
+    <div className="section-heading compact"><div><span>MOMENTUM CHARTS</span><h2>직무·회사·경력별 증감</h2></div><p>막대 길이는 전월 대비 변화량을 나타냅니다.</p></div>
+    <div className="report-chart-grid"><Panel eyebrow="JOB MOMENTUM" title="직무 강세·약세"><DeltaBars rows={jobMoves.slice(0, 10)} /></Panel><Panel eyebrow="COMPANY MOVERS" title="회사별 주요 변동"><DeltaBars rows={companyMoves.slice(0, 10)} /></Panel><Panel eyebrow="CAREER MIX" title="경력별 변화"><DeltaBars rows={careerMoves.slice(0, 8)} /></Panel><Panel eyebrow="EMPLOYMENT MIX" title="고용형태 변화"><DeltaBars rows={movementRows(stats.by_employment_type || []).slice(0, 8)} /></Panel></div>
+    {analysis ? <StructuredReport analysis={analysis} data={data} /> : null}
+    {!analysis && report.status === 'complete' && report.markdown ? <div className="data-warning"><AlertCircle size={20} /><div><b>이전 형식의 리포트가 감지됐습니다.</b><p>새 구조의 그래프형 리포트를 만들려면 최신 워크플로를 한 번 실행해 주세요.</p></div></div> : null}
     <ReportMethod report={report} />
   </section>
+}
+
+function StructuredReport({ analysis, data }: { analysis: NonNullable<Report['analysis']>; data:Data }) {
+  const jobs = new Map(data.snapshot.jobs.map(job => [job.id, job]))
+  const news = new Map((data.report.news || []).map(item => [item.url, item]))
+  const companyStats = new Map<string, {current:number;previous:number|null;change:number|null}>((data.report.statistics?.by_company || []).map((row:{name:string;current:number;previous:number|null;change:number|null}) => [row.name, row]))
+  return <>
+    <div className="section-heading compact"><div><span>JOB SIGNAL</span><h2>직무별 애널리스트 해설</h2></div></div>
+    <div className="insight-grid">{analysis.job_insights.map(item => <article className="insight-card" key={`${item.name}-${item.direction}`}><div><span>{item.name}</span><b className={item.direction === '강세' ? 'positive' : item.direction === '약세' ? 'negative' : 'neutral'}>{item.direction}</b></div><p>{item.comment}</p></article>)}</div>
+
+    <div className="section-heading compact"><div><span>COMPANY MOMENTUM</span><h2>주요 회사 채용 변화</h2></div></div>
+    <div className="company-insight-grid">{analysis.company_insights.map(item => {
+      const stat = companyStats.get(item.name)
+      const linkedJobs = item.job_ids.map(id => jobs.get(id)).filter(Boolean) as Job[]
+      const linkedNews = item.news_urls.map(url => news.get(url)).filter(Boolean) as NonNullable<Report['news']>
+      return <article className="company-insight-card" key={item.name}><header><div><span>{item.direction} · {item.evidence_level}</span><h3>{item.name}</h3></div><ChangeBadge value={stat?.change ?? null} large /></header><p>{item.comment}</p><div className="source-links">{linkedJobs.map(job => <a href={job.url} target="_blank" rel="noreferrer" key={job.id}><BriefcaseBusiness size={14} />{job.title}<ArrowUpRight size={13} /></a>)}{linkedNews.map(article => <a href={article.url} target="_blank" rel="noreferrer" key={article.url}><Newspaper size={14} />{article.title}<ArrowUpRight size={13} /></a>)}</div></article>
+    })}</div>
+
+    <div className="section-heading compact"><div><span>NEWS & HIRING SIGNAL</span><h2>뉴스와 채용 변화</h2></div><b>{analysis.news_signals.length}개 주요 신호</b></div>
+    {analysis.news_signals.length ? <div className="signal-grid">{analysis.news_signals.map((signal, index) => <article className="signal-card" key={`${signal.company}-${index}`}><div><span>{signal.company || '업계'}</span><b className={`evidence ${signal.evidence_level === '직접 근거' ? 'confirmed' : signal.evidence_level === '관련 가능성' ? 'possible' : ''}`}>{signal.evidence_level}</b></div><h3>{signal.headline}</h3><p>{signal.comment}</p><div className="source-links">{signal.news_urls.map(url => { const article = news.get(url); return article ? <a href={url} target="_blank" rel="noreferrer" key={url}><Newspaper size={14} />{article.title}<ArrowUpRight size={13} /></a> : null })}</div></article>)}</div> : <div className="data-warning"><AlertCircle size={20} /><div><b>채용 변화와 연결할 주요 뉴스가 없습니다.</b><p>근거가 부족한 원인은 추정하지 않습니다.</p></div></div>}
+
+    <div className="report-bottom-grid"><article className="watch-card"><span>NEXT WATCHLIST</span><h2>다음 기간 관찰 포인트</h2><ol>{analysis.watchlist.map(item => <li key={item}>{item}</li>)}</ol></article><details className="limitations-card"><summary>데이터 한계와 해석 주의사항</summary><ul>{analysis.limitations.map(item => <li key={item}>{item}</li>)}</ul></details></div>
+  </>
 }
 
 function ReportMethod({ report }: { report: Report }) {

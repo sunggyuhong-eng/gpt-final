@@ -4,7 +4,22 @@ import httpx
 import pytest
 
 import collector.report as report_module
-from collector.report import _compact_payload, _hydrate_saved_news, _response_text, _select_relevant_news
+from collector.report import _compact_payload, _hydrate_saved_news, _response_text, _sanitize_analysis, _select_relevant_news
+
+
+def structured_result(**overrides):
+    analysis = {
+        "outlook": "채용은 완만하게 증가했다.",
+        "market_comment": "신규 공고가 종료 공고보다 많았다.",
+        "highlights": ["게임제작 수요가 중심이다."],
+        "job_insights": [{"name": "게임제작", "direction": "강세", "comment": "제작 수요가 증가했다."}],
+        "company_insights": [],
+        "news_signals": [],
+        "watchlist": ["다음 기간 유지 여부를 확인한다."],
+        "limitations": ["두 기간 비교다."],
+    }
+    analysis.update(overrides)
+    return {"output": [{"content": [{"type": "output_text", "text": json.dumps(analysis, ensure_ascii=False)}]}]}
 
 
 def test_report_payload_removes_large_id_lists():
@@ -72,15 +87,39 @@ def test_generate_uses_openai_responses_api(tmp_path, monkeypatch):
 
     def fake_post(url, **kwargs):
         captured.update({"url": url, **kwargs})
-        return httpx.Response(200, json={"output": [{"content": [{"type": "output_text", "text": "# 완료"}]}]})
+        return httpx.Response(200, json=structured_result())
 
     monkeypatch.setattr(report_module.httpx, "post", fake_post)
     result = report_module.generate("2026-09")
     assert captured["url"] == "https://api.openai.com/v1/responses"
     assert captured["json"]["model"] == "gpt-test"
+    assert captured["json"]["text"]["format"]["type"] == "json_schema"
+    assert captured["json"]["text"]["format"]["strict"] is True
     assert captured["headers"]["Authorization"] == "Bearer test-key"
     assert result["provider"] == "openai"
-    assert result["markdown"] == "# 완료"
+    assert result["analysis"]["outlook"] == "채용은 완만하게 증가했다."
+    assert "# 채용은 완만하게 증가했다." in result["markdown"]
+
+
+def test_structured_analysis_removes_null_and_unknown_links():
+    payload = {
+        "statistics": {"by_company": [{"name": "테스트게임즈"}]},
+        "job_examples": [{"id": "job-1", "url": "https://example.com/job"}],
+        "news": [{"url": "https://example.com/news"}],
+    }
+    analysis = structured_result(
+        outlook="previous가 null입니다.",
+        company_insights=[{
+            "name": "테스트게임즈", "direction": "증가", "comment": "[깨진 링크](https://bad.example)를 확인했다.",
+            "evidence_level": "관련 가능성", "job_ids": ["job-1", "unknown"],
+            "news_urls": ["https://example.com/news", "https://bad.example"],
+        }],
+    )["output"][0]["content"][0]["text"]
+    cleaned = _sanitize_analysis(json.loads(analysis), payload)
+    assert "null" not in cleaned["outlook"]
+    assert cleaned["company_insights"][0]["comment"] == "깨진 링크를 확인했다."
+    assert cleaned["company_insights"][0]["job_ids"] == ["job-1"]
+    assert cleaned["company_insights"][0]["news_urls"] == ["https://example.com/news"]
 
 
 def test_incomplete_response_is_not_saved_as_complete(tmp_path, monkeypatch):

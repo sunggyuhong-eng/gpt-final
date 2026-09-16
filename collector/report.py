@@ -13,6 +13,63 @@ from collector.pipeline import ROOT, read_json, write_json
 
 SYSTEM = (ROOT / "config" / "report_prompt.md").read_text(encoding="utf-8").strip()
 
+REPORT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "outlook": {"type": "string"},
+        "market_comment": {"type": "string"},
+        "highlights": {"type": "array", "items": {"type": "string"}},
+        "job_insights": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "direction": {"type": "string", "enum": ["강세", "약세", "보합"]},
+                    "comment": {"type": "string"},
+                },
+                "required": ["name", "direction", "comment"],
+                "additionalProperties": False,
+            },
+        },
+        "company_insights": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "direction": {"type": "string", "enum": ["증가", "감소", "보합"]},
+                    "comment": {"type": "string"},
+                    "evidence_level": {"type": "string", "enum": ["직접 근거", "관련 가능성", "근거 부족"]},
+                    "job_ids": {"type": "array", "items": {"type": "string"}},
+                    "news_urls": {"type": "array", "items": {"type": "string"}},
+                },
+                "required": ["name", "direction", "comment", "evidence_level", "job_ids", "news_urls"],
+                "additionalProperties": False,
+            },
+        },
+        "news_signals": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "company": {"type": "string"},
+                    "headline": {"type": "string"},
+                    "comment": {"type": "string"},
+                    "evidence_level": {"type": "string", "enum": ["직접 근거", "관련 가능성", "근거 부족"]},
+                    "news_urls": {"type": "array", "items": {"type": "string"}},
+                },
+                "required": ["company", "headline", "comment", "evidence_level", "news_urls"],
+                "additionalProperties": False,
+            },
+        },
+        "watchlist": {"type": "array", "items": {"type": "string"}},
+        "limitations": {"type": "array", "items": {"type": "string"}},
+    },
+    "required": ["outlook", "market_comment", "highlights", "job_insights", "company_insights", "news_signals", "watchlist", "limitations"],
+    "additionalProperties": False,
+}
+
 
 def generate(month: str) -> dict:
     report_path = ROOT / "data" / "reports" / f"{month}.json"
@@ -24,7 +81,7 @@ def generate(month: str) -> dict:
     payload["methodology"] = build_methodology(payload, analysis_input)
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
-        payload.update({"status": "pending_api_key", "error": "OPENAI_API_KEY가 없어 GPT 리포트를 생성하지 않았습니다.", "markdown": None})
+        payload.update({"status": "pending_api_key", "error": "OPENAI_API_KEY가 없어 GPT 리포트를 생성하지 않았습니다.", "analysis": None, "markdown": None})
         write_json(report_path, payload)
         write_json(ROOT / "data" / "reports" / "latest.json", payload)
         raise RuntimeError("OPENAI_API_KEY가 없습니다. GitHub Actions Secret을 확인하세요.")
@@ -36,9 +93,17 @@ def generate(month: str) -> dict:
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
         json={
             "model": model,
-            "max_output_tokens": 7000,
+            "max_output_tokens": 4000,
             "instructions": SYSTEM,
             "input": json.dumps(analysis_input, ensure_ascii=False),
+            "text": {
+                "format": {
+                    "type": "json_schema",
+                    "name": "game_hiring_market_report",
+                    "strict": True,
+                    "schema": REPORT_SCHEMA,
+                }
+            },
         },
         timeout=600,
     )
@@ -53,16 +118,114 @@ def generate(month: str) -> dict:
     if result.get("status") == "incomplete":
         reason = (result.get("incomplete_details") or {}).get("reason") or "알 수 없음"
         raise RuntimeError(f"GPT 리포트 출력이 완료되기 전에 중단되었습니다: {reason}")
-    markdown = _response_text(result).strip()
-    if not markdown:
+    response_text = _response_text(result).strip()
+    if not response_text:
         raise RuntimeError("GPT가 비어 있는 리포트를 반환했습니다.")
-    payload.update({"status": "complete", "provider": "openai", "model": model, "markdown": markdown, "error": None})
+    try:
+        analysis = json.loads(response_text)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("GPT가 올바른 구조의 리포트를 반환하지 않았습니다.") from exc
+    analysis = _sanitize_analysis(analysis, payload)
+    markdown = _analysis_markdown(analysis, payload)
+    payload.update({"status": "complete", "provider": "openai", "model": model, "analysis": analysis, "markdown": markdown, "error": None})
     write_json(report_path, payload)
     write_json(ROOT / "data" / "reports" / "latest.json", payload)
     reports = ROOT / "reports"
     reports.mkdir(exist_ok=True)
     (reports / f"{month}.md").write_text(markdown, encoding="utf-8")
     return payload
+
+
+def _sanitize_analysis(analysis: dict, payload: dict) -> dict:
+    if not isinstance(analysis, dict):
+        raise RuntimeError("GPT 리포트 구조가 객체가 아닙니다.")
+
+    def clean(value: object) -> str:
+        text = str(value or "").strip()
+        text = re.sub("null", "비교 데이터 없음", text, flags=re.IGNORECASE)
+        text = re.sub(r"\[([^\]]+)]\([^)]+\)", r"\1", text)
+        return text
+
+    allowed_jobs = {str(job.get("id")) for job in payload.get("job_examples") or [] if job.get("id")}
+    allowed_news = {str(item.get("url")) for item in payload.get("news") or [] if item.get("url")}
+    allowed_companies = {str(row.get("name")) for row in (payload.get("statistics") or {}).get("by_company") or [] if row.get("name")}
+
+    sanitized = {
+        "outlook": clean(analysis.get("outlook")),
+        "market_comment": clean(analysis.get("market_comment")),
+        "highlights": [clean(x) for x in (analysis.get("highlights") or [])[:4] if clean(x)],
+        "job_insights": [],
+        "company_insights": [],
+        "news_signals": [],
+        "watchlist": [clean(x) for x in (analysis.get("watchlist") or [])[:4] if clean(x)],
+        "limitations": [clean(x) for x in (analysis.get("limitations") or [])[:4] if clean(x)],
+    }
+    for item in (analysis.get("job_insights") or [])[:6]:
+        if not isinstance(item, dict) or not clean(item.get("name")):
+            continue
+        sanitized["job_insights"].append({
+            "name": clean(item.get("name")),
+            "direction": item.get("direction") if item.get("direction") in {"강세", "약세", "보합"} else "보합",
+            "comment": clean(item.get("comment")),
+        })
+    for item in (analysis.get("company_insights") or [])[:6]:
+        if not isinstance(item, dict) or clean(item.get("name")) not in allowed_companies:
+            continue
+        sanitized["company_insights"].append({
+            "name": clean(item.get("name")),
+            "direction": item.get("direction") if item.get("direction") in {"증가", "감소", "보합"} else "보합",
+            "comment": clean(item.get("comment")),
+            "evidence_level": item.get("evidence_level") if item.get("evidence_level") in {"직접 근거", "관련 가능성", "근거 부족"} else "근거 부족",
+            "job_ids": [str(x) for x in (item.get("job_ids") or []) if str(x) in allowed_jobs][:2],
+            "news_urls": [str(x) for x in (item.get("news_urls") or []) if str(x) in allowed_news][:2],
+        })
+    for item in (analysis.get("news_signals") or [])[:5]:
+        if not isinstance(item, dict):
+            continue
+        urls = [str(x) for x in (item.get("news_urls") or []) if str(x) in allowed_news][:2]
+        sanitized["news_signals"].append({
+            "company": clean(item.get("company")),
+            "headline": clean(item.get("headline")),
+            "comment": clean(item.get("comment")),
+            "evidence_level": item.get("evidence_level") if item.get("evidence_level") in {"직접 근거", "관련 가능성", "근거 부족"} else "근거 부족",
+            "news_urls": urls,
+        })
+    return sanitized
+
+
+def _analysis_markdown(analysis: dict, payload: dict) -> str:
+    jobs = {str(job.get("id")): job for job in payload.get("job_examples") or []}
+    news = {str(item.get("url")): item for item in payload.get("news") or []}
+
+    def esc(value: object) -> str:
+        return str(value or "").replace("[", "\\[").replace("]", "\\]")
+
+    lines = [f"# {esc(analysis.get('outlook'))}", "", esc(analysis.get("market_comment")), "", "## 핵심 포인트"]
+    lines += [f"- {esc(item)}" for item in analysis.get("highlights") or []]
+    lines += ["", "## 직무 강세·약세"]
+    lines += [f"- **{esc(item['name'])} · {item['direction']}** — {esc(item['comment'])}" for item in analysis.get("job_insights") or []]
+    lines += ["", "## 회사별 채용 모멘텀"]
+    for item in analysis.get("company_insights") or []:
+        lines.append(f"### {esc(item['name'])} · {item['direction']}")
+        lines.append(f"{esc(item['comment'])} *(뉴스 근거: {item['evidence_level']})*")
+        for job_id in item.get("job_ids") or []:
+            job = jobs.get(job_id) or {}
+            if job.get("url"):
+                lines.append(f"- [{esc(job.get('title') or '공고 원문')}]({job['url']})")
+        for url in item.get("news_urls") or []:
+            article = news.get(url) or {}
+            lines.append(f"- [{esc(article.get('title') or '뉴스 원문')}]({url})")
+    lines += ["", "## 뉴스와 채용 시그널"]
+    for item in analysis.get("news_signals") or []:
+        lines.append(f"- **{esc(item['company'])} · {item['evidence_level']}** — {esc(item['headline'])}: {esc(item['comment'])}")
+        for url in item.get("news_urls") or []:
+            article = news.get(url) or {}
+            lines.append(f"  - [{esc(article.get('title') or '뉴스 원문')}]({url})")
+    lines += ["", "## 다음 기간 Watchlist"]
+    lines += [f"- {esc(item)}" for item in analysis.get("watchlist") or []]
+    lines += ["", "## 데이터 한계"]
+    lines += [f"- {esc(item)}" for item in analysis.get("limitations") or []]
+    return "\n".join(lines).strip() + "\n"
 
 
 def _hydrate_saved_news(payload: dict, month: str) -> list[dict]:
@@ -92,7 +255,7 @@ def build_methodology(payload: dict, analysis_input: dict | None = None) -> dict
     selected_news = analysis_input.get("news") or []
     dates = sorted(x.get("published_at") for x in selected_news if x.get("published_at"))
     return {
-        "prompt_version": "2026-09-16-market-brief-v2",
+        "prompt_version": "2026-09-16-structured-brief-v3",
         "system_prompt": SYSTEM,
         "evidence": {
             "baseline_period": payload.get("baseline_period"),

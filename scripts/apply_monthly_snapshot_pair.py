@@ -92,6 +92,7 @@ def main() -> None:
         "is_sample": is_sample,
         "status": "pending_api_key",
         "error": "월간 비교 데이터가 적용되었습니다. GPT 분석은 OPENAI_API_KEY 등록 후 수동 생성됩니다.",
+        "analysis": None,
         "markdown": None,
         "statistics": stats,
         "job_examples": [
