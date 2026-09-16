@@ -93,10 +93,14 @@ def test_generate_uses_openai_responses_api(tmp_path, monkeypatch):
     result = report_module.generate("2026-09")
     assert captured["url"] == "https://api.openai.com/v1/responses"
     assert captured["json"]["model"] == "gpt-test"
+    assert captured["json"]["max_output_tokens"] == 25_000
+    assert captured["json"]["reasoning"] == {"effort": "low"}
     assert captured["json"]["text"]["format"]["type"] == "json_schema"
     assert captured["json"]["text"]["format"]["strict"] is True
     assert captured["headers"]["Authorization"] == "Bearer test-key"
     assert result["provider"] == "openai"
+    assert result["report_schema_version"] == 3
+    assert result["generated_at"]
     assert result["analysis"]["outlook"] == "채용은 완만하게 증가했다."
     assert "# 채용은 완만하게 증가했다." in result["markdown"]
 
@@ -135,3 +139,23 @@ def test_incomplete_response_is_not_saved_as_complete(tmp_path, monkeypatch):
     monkeypatch.setattr(report_module.httpx, "post", fake_post)
     with pytest.raises(RuntimeError, match="max_output_tokens"):
         report_module.generate("2026-09")
+
+
+def test_max_output_tokens_retries_once_with_larger_limit(tmp_path, monkeypatch):
+    monkeypatch.setattr(report_module, "ROOT", tmp_path)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    path = tmp_path / "data" / "reports" / "2026-09.json"
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps({"period": "2026-09", "statistics": {}, "job_examples": [], "news": []}), encoding="utf-8")
+    limits = []
+
+    def fake_post(url, **kwargs):
+        limits.append(kwargs["json"]["max_output_tokens"])
+        if len(limits) == 1:
+            return httpx.Response(200, json={"status": "incomplete", "incomplete_details": {"reason": "max_output_tokens"}, "output": []})
+        return httpx.Response(200, json=structured_result())
+
+    monkeypatch.setattr(report_module.httpx, "post", fake_post)
+    result = report_module.generate("2026-09")
+    assert limits == [25_000, 40_000]
+    assert result["status"] == "complete"

@@ -1,6 +1,11 @@
 import type { CategoryHistory, History, Report, Snapshot, Status } from './types'
 
-const asset = (path: string) => new URL(path, window.location.href.split('#')[0]).toString()
+const requestVersion = Date.now().toString()
+const asset = (path: string) => {
+  const url = new URL(path, window.location.href.split('#')[0])
+  url.searchParams.set('v', requestVersion)
+  return url.toString()
+}
 
 async function load<T>(path:string): Promise<T> {
   const response = await fetch(asset(path), { cache: 'no-store' })

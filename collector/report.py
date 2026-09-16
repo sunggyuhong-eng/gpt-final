@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
+from datetime import datetime, timezone
 
 try:
     import httpx
@@ -137,7 +138,16 @@ def generate(month: str) -> dict:
         raise RuntimeError("GPT가 올바른 구조의 리포트를 반환하지 않았습니다.") from exc
     analysis = _sanitize_analysis(analysis, payload)
     markdown = _analysis_markdown(analysis, payload)
-    payload.update({"status": "complete", "provider": "openai", "model": model, "analysis": analysis, "markdown": markdown, "error": None})
+    payload.update({
+        "status": "complete",
+        "provider": "openai",
+        "model": model,
+        "report_schema_version": 3,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "analysis": analysis,
+        "markdown": markdown,
+        "error": None,
+    })
     write_json(report_path, payload)
     write_json(ROOT / "data" / "reports" / "latest.json", payload)
     reports = ROOT / "reports"

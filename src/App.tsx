@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
 import { NavLink, Route, Routes, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ArrowUpRight, BarChart3, BriefcaseBusiness, Building2, CalendarDays,
@@ -152,6 +152,16 @@ function Categories({ data }: { data: Data }) {
   const currentCount = trend.at(-1)?.total_open || jobs.length
   const previousCount = trend.length > 1 ? trend.at(-2)?.total_open ?? null : null
   const change = previousCount == null ? null : currentCount - previousCount
+  const currentPeriod = data.categoryHistory.periods.at(-1)
+  const previousPeriod = data.categoryHistory.periods.at(-2)
+  const majorCurrent = currentPeriod?.major[selected] ?? majorJobs.length
+  const majorPrevious = previousPeriod?.major[selected] ?? null
+  const taxonomySubs = taxonomy[selected] || []
+  const subTagTotal = (period: CategoryHistory['periods'][number] | undefined) => period
+    ? taxonomySubs.reduce((sum, name) => sum + (period.sub_by_major?.[selected]?.[name] ?? period.sub[name] ?? 0), 0)
+    : null
+  const subCurrent = subTagTotal(currentPeriod) ?? subCounts.reduce((sum, item) => sum + item.count, 0)
+  const subPrevious = subTagTotal(previousPeriod)
   const categoryChange = (kind: 'major' | 'sub', name: string, major = selected) => {
     const periods = data.categoryHistory.periods
     if (periods.length < 2) return null
@@ -162,11 +172,16 @@ function Categories({ data }: { data: Data }) {
   return <section className="category-page"><PageTitle eyebrow="JOB CATEGORY" title="직무별 채용" description="대분류에서 소분류를 선택하고 해당 직무의 변화와 공고를 확인하세요." />
     <div className="taxonomy-note"><b>집계 기준</b><span>대분류는 중복을 제거한 공고 수입니다. 한 공고에 여러 소분류가 지정될 수 있어 소분류 합계는 대분류 공고 수와 다를 수 있으며, 선택한 대분류에 속한 소분류만 표시합니다.</span></div>
     <div className="category-browser">
-      <aside className="major-rail"><div className="category-browser-title"><span>대분류</span><b>직무 선택</b></div><div className="major-list">{counts.map(x => <button className={selected === x.name ? 'active' : ''} onClick={() => setParams({ major: x.name })} key={x.name}><span>{x.name}</span><span className="category-metric"><b>{x.count.toLocaleString()}</b><ChangeBadge value={categoryChange('major', x.name)} /></span></button>)}</div></aside>
+      <aside className="major-rail"><div className="category-browser-title"><span>대분류 · 고유 공고</span><b>직무 선택</b></div><div className="major-list">{counts.map(x => { const delta = categoryChange('major', x.name); const previous = delta == null ? null : x.count - delta; return <button className={selected === x.name ? 'active' : ''} onClick={() => setParams({ major: x.name })} key={x.name} title={`${x.name} 고유 공고: ${previous == null ? '비교 기준 없음' : `${previous.toLocaleString()} → `}${x.count.toLocaleString()}건${delta == null ? '' : ` (${fmtChange(delta)})`}`}><span>{x.name}</span><span className="category-metric"><b>{x.count.toLocaleString()}건</b><ChangeBadge value={delta} /></span></button> })}</div></aside>
       <div className="category-browser-content">
-        <section className="subcategory-panel"><div className="category-browser-title"><span>소분류</span><b>{selected} 세부 직무</b></div><label className="mini-search category-search"><Search size={17} /><input value={subQuery} onChange={event => setSubQuery(event.target.value)} placeholder="소분류 직무 검색" />{subQuery && <button onClick={() => setSubQuery('')} aria-label="검색어 지우기">×</button>}</label><div className="subcategory-list">{visibleSubs.map(x => <button className={selectedSub === x.name ? 'active' : ''} onClick={() => setParams({ major: selected, sub: x.name })} key={x.name}><span>{x.name}</span><span className="category-metric"><b>{x.count.toLocaleString()}건</b><ChangeBadge value={categoryChange('sub', x.name)} /></span><ChevronRight size={16} /></button>)}{!visibleSubs.length && <p>검색 결과가 없습니다.</p>}</div><p className="category-overlap-note">소분류 태그 {subCounts.reduce((sum, item) => sum + item.count, 0).toLocaleString()}개 · 고유 공고 {majorJobs.length.toLocaleString()}건</p></section>
+        <section className="subcategory-panel"><div className="category-browser-title"><span>소분류 · 중복 가능 태그</span><b>{selected} 세부 직무</b></div><label className="mini-search category-search"><Search size={17} /><input value={subQuery} onChange={event => setSubQuery(event.target.value)} placeholder="소분류 직무 검색" />{subQuery && <button onClick={() => setSubQuery('')} aria-label="검색어 지우기">×</button>}</label><div className="subcategory-list">{visibleSubs.map(x => { const delta = categoryChange('sub', x.name); const previous = delta == null ? null : x.count - delta; return <button className={selectedSub === x.name ? 'active' : ''} onClick={() => setParams({ major: selected, sub: x.name })} key={x.name} title={`${x.name} 직무 태그: ${previous == null ? '비교 기준 없음' : `${previous.toLocaleString()} → `}${x.count.toLocaleString()}개${delta == null ? '' : ` (${fmtChange(delta)})`}`}><span>{x.name}</span><span className="category-metric"><b>{x.count.toLocaleString()}개</b><ChangeBadge value={delta} /></span><ChevronRight size={16} /></button> })}{!visibleSubs.length && <p>검색 결과가 없습니다.</p>}</div><p className="category-overlap-note">각 숫자는 공고 수가 아니라 해당 공고에 붙은 직무 태그 수입니다.</p></section>
         <section className="category-trend-card"><div className="category-trend-head"><div><span>선택 직무 추이</span><h2>{selectedSub || selected}</h2></div><div><strong>{currentCount.toLocaleString()}건</strong><small className={change != null && change < 0 ? 'down' : ''}>{change == null ? '비교 기준 없음' : `직전 기준일 대비 ${change > 0 ? '+' : ''}${change}건`}</small></div></div><Trend history={{ months: trend }} /></section>
       </div>
+    </div>
+    <div className="category-reconciliation" aria-label={`${selected} 집계 단위 비교`}>
+      <div><span>대분류 고유 공고</span><b>{majorPrevious == null ? '기준 없음' : majorPrevious.toLocaleString()} → {majorCurrent.toLocaleString()}건</b><ChangeBadge value={majorPrevious == null ? null : majorCurrent - majorPrevious} /></div>
+      <div><span>소분류 태그 합계</span><b>{subPrevious == null ? '기준 없음' : subPrevious.toLocaleString()} → {subCurrent.toLocaleString()}개</b><ChangeBadge value={subPrevious == null ? null : subCurrent - subPrevious} /></div>
+      <p>한 공고에 여러 소분류 태그가 붙을 수 있어 두 증감은 서로 같지 않을 수 있습니다. 예: 사운드 제작 -2, 대분류 고유 공고 -1은 서로 다른 집계 단위입니다.</p>
     </div>
     {selected && <><div className="section-heading compact"><div><span>SELECTED JOB</span><h2>{selectedSub || selected} 채용공고</h2></div><b>{jobs.length.toLocaleString()}건</b></div><JobCards jobs={jobs.slice((page - 1) * pageSize, page * pageSize)} detailed /><Pagination page={page} total={pageCount} setPage={setPage} /></>}
   </section>
@@ -197,20 +212,22 @@ function Companies({ data }: { data: Data }) {
 function Reports({ data }: { data: Data }) {
   const report = data.report
   const analysis = report.analysis
+  const hasLegacyReport = !analysis && report.status === 'complete' && Boolean(report.markdown)
+  const hasReportContent = Boolean(analysis || hasLegacyReport)
   const stats = report.statistics || {}
   const jobMoves = movementRows(stats.by_category || [])
   const companyMoves = movementRows(stats.by_company || [])
   const careerMoves = movementRows(stats.by_career || [])
   const emptyText = '이번 달 해설을 준비하고 있습니다. 통계와 그래프는 정상적으로 확인할 수 있습니다.'
   return <section><PageTitle eyebrow="MONTHLY INSIGHT" title="월간 리포트" description={`${report.period} 채용시장 분석을 확인하세요.`} />
-    <div className="report-hero"><div><FileText size={28} /><span>{analysis ? '분석 완료' : '통계 공개 · 해설 준비 중'}</span><h2>{report.period.replace('-', '년 ')}월<br />게임업계 채용 리포트</h2><p>{analysis?.outlook || (report.comparison_label ? `${report.comparison_label} 채용 변화와 업계 뉴스를 함께 검토합니다.` : '채용 변화와 업계 뉴스를 함께 검토합니다.')}</p></div>{report.markdown && <a className="primary-button" href={`reports/${report.period}.md`} download>리포트 다운로드 <ArrowUpRight size={18} /></a>}</div>
+    <div className="report-hero"><div><FileText size={28} /><span>{hasReportContent ? '분석 완료' : report.status === 'complete' ? '생성 결과 확인 필요' : '통계 공개 · 해설 준비 중'}</span><h2>{report.period.replace('-', '년 ')}월<br />게임업계 채용 리포트</h2><p>{analysis?.outlook || (report.comparison_label ? `${report.comparison_label} 채용 변화와 업계 뉴스를 함께 검토합니다.` : '채용 변화와 업계 뉴스를 함께 검토합니다.')}</p>{report.generated_at && <small className="report-generated">GPT 생성 {formatDateTime(report.generated_at)}</small>}</div>{report.markdown && <a className="primary-button" href={`reports/${report.period}.md`} download>리포트 다운로드 <ArrowUpRight size={18} /></a>}</div>
     {report.is_sample && <div className="status-strip warning">화면 검증용 예시 리포트입니다.</div>}
     <div className="report-kpis"><Kpi icon={BriefcaseBusiness} label="전체 공개 공고" value={`${(stats.total_open ?? 0).toLocaleString()}건`} sub={`전월 대비 ${fmtChange(stats.change)}`} primary /><Kpi icon={Sparkles} label="신규 공고" value={`${stats.new_count ?? '-'}건`} sub="이번 기간 새로 확인" /><Kpi icon={Clock3} label="종료 공고" value={`${stats.closed_count ?? '-'}건`} sub="이전 기간 대비 종료" /><Kpi icon={CheckCircle2} label="유지 공고" value={`${stats.maintained_count ?? '-'}건`} sub="두 기간 모두 확인" /></div>
-    <div className="report-overview-grid"><Panel eyebrow="MARKET SIZE" title="전체 공고 비교"><ComparisonBars previous={stats.previous_total} current={stats.total_open} labels={[report.baseline_period || '이전 비교 데이터 없음', report.current_period || report.period]} /></Panel>{analysis ? <article className="analyst-summary"><span>ANALYST VIEW</span><h2>{analysis.outlook}</h2><p>{analysis.market_comment}</p><ul>{analysis.highlights.map(item => <li key={item}>{item}</li>)}</ul></article> : <Empty icon={Sparkles} title="시장 해설을 준비하고 있어요" text={emptyText} />}</div>
+    <div className="report-overview-grid"><Panel eyebrow="MARKET SIZE" title="전체 공고 비교"><ComparisonBars previous={stats.previous_total} current={stats.total_open} labels={[report.baseline_period || '이전 비교 데이터 없음', report.current_period || report.period]} /></Panel>{analysis ? <article className="analyst-summary"><span>ANALYST VIEW</span><h2>{analysis.outlook}</h2><p>{analysis.market_comment}</p><ul>{analysis.highlights.map(item => <li key={item}>{item}</li>)}</ul></article> : hasLegacyReport ? <article className="analyst-summary legacy"><span>ANALYST VIEW · 이전 형식</span><h2>생성된 시장 해설을 불러왔어요</h2><p>리포트 생성은 완료됐습니다. 아래에서 전체 해설을 확인할 수 있으며, 최신 구조로 다시 생성하면 카드형 분석으로 표시됩니다.</p></article> : report.status === 'complete' ? <Empty icon={AlertCircle} title="생성 결과 형식을 확인해 주세요" text="작업은 완료됐지만 해설 본문이 저장되지 않았습니다. 최신 Generate GPT Report - OpenAI 워크플로를 실행해 주세요." /> : <Empty icon={Sparkles} title="시장 해설을 준비하고 있어요" text={emptyText} />}</div>
     <div className="section-heading compact"><div><span>MOMENTUM CHARTS</span><h2>직무·회사·경력별 증감</h2></div><p>막대 길이는 전월 대비 변화량을 나타냅니다.</p></div>
     <div className="report-chart-grid"><Panel eyebrow="JOB MOMENTUM" title="직무 강세·약세"><DeltaBars rows={jobMoves.slice(0, 10)} /></Panel><Panel eyebrow="COMPANY MOVERS" title="회사별 주요 변동"><DeltaBars rows={companyMoves.slice(0, 10)} /></Panel><Panel eyebrow="CAREER MIX" title="경력별 변화"><DeltaBars rows={careerMoves.slice(0, 8)} /></Panel><Panel eyebrow="EMPLOYMENT MIX" title="고용형태 변화"><DeltaBars rows={movementRows(stats.by_employment_type || []).slice(0, 8)} /></Panel></div>
     {analysis ? <StructuredReport analysis={analysis} data={data} /> : null}
-    {!analysis && report.status === 'complete' && report.markdown ? <div className="data-warning"><AlertCircle size={20} /><div><b>이전 형식의 리포트가 감지됐습니다.</b><p>새 구조의 그래프형 리포트를 만들려면 최신 워크플로를 한 번 실행해 주세요.</p></div></div> : null}
+    {hasLegacyReport && report.markdown ? <Panel className="report-panel legacy-report" eyebrow="GENERATED REPORT" title="생성된 시장 해설"><article className="report"><ReportMarkdown markdown={report.markdown} /></article></Panel> : null}
     <ReportMethod report={report} />
   </section>
 }
@@ -250,7 +267,7 @@ function ReportMethod({ report }: { report: Report }) {
 }
 
 function ReportMarkdown({ markdown }: { markdown: string }) {
-  const lines = markdown.replace(/\\([*|`#])/g, '$1').split('\n')
+  const lines = markdown.replace(/\bnull\b/gi, '비교 데이터 없음').replace(/\\([*|`#])/g, '$1').split('\n')
   const blocks: React.ReactNode[] = []
   for (let index = 0; index < lines.length;) {
     const line = lines[index].trim()
@@ -306,16 +323,21 @@ function Panel({ eyebrow, title, children, className = '' }: { eyebrow?: string;
 }
 
 function Trend({ history }: { history: History }) {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null)
+  const gradientId = `trend-fill-${useId().replace(/:/g, '')}`
   if (!history.months.length) return <Empty title="아직 추이 데이터가 없어요" text="다음 월간 스냅샷부터 변화가 표시돼요." />
   const values = history.months.map(row => row.total_open)
   const min = Math.min(...values), max = Math.max(...values), spread = Math.max(1, max - min)
   const floor = Math.max(0, min - spread * .35), ceiling = max + spread * .25
-  const x = (index:number) => 58 + index * (900 / Math.max(1, values.length - 1))
+  const plotLeft = 58, plotRight = 730, plotWidth = plotRight - plotLeft
+  const x = (index:number) => plotLeft + index * (plotWidth / Math.max(1, values.length - 1))
   const y = (value:number) => 22 + (ceiling - value) / Math.max(1, ceiling - floor) * 200
   const points = values.map((value, index) => `${x(index)},${y(value)}`).join(' ')
-  const area = `58,222 ${points} ${x(values.length - 1)},222`
+  const area = `${plotLeft},222 ${points} ${x(values.length - 1)},222`
   const gridValues = [0, 1, 2, 3].map(index => Math.round(floor + (ceiling - floor) * index / 3)).reverse()
-  return <div className="chart"><svg className="trend-svg" viewBox="0 0 1000 270" preserveAspectRatio="none" role="img" aria-label="월별 채용공고 추이"><defs><linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#3182f6" stopOpacity=".3" /><stop offset="1" stopColor="#3182f6" stopOpacity="0" /></linearGradient></defs>{gridValues.map(value => <g key={value}><line x1="58" x2="958" y1={y(value)} y2={y(value)} /><text x="0" y={y(value) + 4}>{value.toLocaleString()}</text></g>)}<polygon points={area} fill="url(#trendFill)" /><polyline points={points} /><g>{history.months.map((row, index) => <g key={row.month}><circle cx={x(index)} cy={y(row.total_open)} r="5"><title>{row.month}: {row.total_open.toLocaleString()}건</title></circle><text className="x-label" x={x(index)} y="252" textAnchor={index === 0 ? 'start' : index === history.months.length - 1 ? 'end' : 'middle'}>{row.month}</text></g>)}</g></svg></div>
+  const active = activeIndex == null ? null : history.months[activeIndex]
+  const hitWidth = plotWidth / Math.max(1, values.length - 1)
+  return <div className="chart interactive-chart" onMouseLeave={() => setActiveIndex(null)}><svg className="trend-svg" viewBox="0 0 760 270" preserveAspectRatio="xMidYMid meet" role="img" aria-label="월별 채용공고 추이"><defs><linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#3182f6" stopOpacity=".3" /><stop offset="1" stopColor="#3182f6" stopOpacity="0" /></linearGradient></defs>{gridValues.map(value => <g key={value}><line x1={plotLeft} x2={plotRight} y1={y(value)} y2={y(value)} /><text x="0" y={y(value) + 4}>{value.toLocaleString()}</text></g>)}<polygon points={area} fill={`url(#${gradientId})`} /><polyline points={points} /><g>{history.months.map((row, index) => <g key={row.month}><circle className={activeIndex === index ? 'active' : ''} cx={x(index)} cy={y(row.total_open)} r={activeIndex === index ? 7 : 5} /><text className="x-label" x={x(index)} y="252" textAnchor={index === 0 ? 'start' : index === history.months.length - 1 ? 'end' : 'middle'}>{row.month}</text><rect className="trend-hit-box" x={values.length === 1 ? plotLeft : Math.max(plotLeft, x(index) - hitWidth / 2)} y="0" width={values.length === 1 ? plotWidth : Math.min(hitWidth, plotRight - Math.max(plotLeft, x(index) - hitWidth / 2))} height="230" tabIndex={0} aria-label={`${row.month} 오픈 공고 ${row.total_open.toLocaleString()}건`} onMouseEnter={() => setActiveIndex(index)} onFocus={() => setActiveIndex(index)} onBlur={() => setActiveIndex(null)} /></g>)}</g>{activeIndex != null && <line className="trend-guide" x1={x(activeIndex)} x2={x(activeIndex)} y1="12" y2="222" />}</svg>{active && <div className={`chart-tooltip${activeIndex === 0 ? ' edge-left' : activeIndex === values.length - 1 ? ' edge-right' : ''}`} style={{ left: `${x(activeIndex!) / 760 * 100}%` }}><b>{active.month}</b><strong>오픈 공고 {active.total_open.toLocaleString()}건</strong>{active.new_count != null && <span>신규 {active.new_count.toLocaleString()}건</span>}{active.closed_count != null && <span>종료 {active.closed_count.toLocaleString()}건</span>}</div>}</div>
 }
 
 function RankList({ rows, to }: { rows: { name: string; count: number; description?: string | null }[]; to: string }) {
@@ -329,12 +351,12 @@ function Bars({ rows }: { rows: { name: string; count: number }[] }) {
 
 function DeltaBars({ rows }: { rows: { name:string;change:number|null;current:number;previous:number|null }[] }) {
   const max = Math.max(1, ...rows.map(row => Math.abs(row.change || 0)))
-  return <div className="delta-bars">{rows.map(row => <div key={row.name}><span title={row.name}>{row.name}</span><div className="delta-track"><i className={(row.change || 0) >= 0 ? 'up' : 'down'} style={{ width: `${Math.max(3, Math.abs(row.change || 0) / max * 100)}%` }} /></div><ChangeBadge value={row.change} /></div>)}</div>
+  return <div className="delta-bars">{rows.map(row => <div className="tooltip-row" tabIndex={0} key={row.name}><span title={row.name}>{row.name}</span><div className="delta-track"><i className={(row.change || 0) >= 0 ? 'up' : 'down'} style={{ width: `${Math.max(3, Math.abs(row.change || 0) / max * 100)}%` }} /></div><ChangeBadge value={row.change} /><span className="bar-tooltip"><b>{row.name}</b><em>{row.previous == null ? '이전 기준 없음' : `${row.previous.toLocaleString()}건 → `}{row.current.toLocaleString()}건</em><strong>{fmtChange(row.change)}</strong></span></div>)}</div>
 }
 
 function ComparisonBars({ previous, current, labels }: { previous:number|null;current:number;labels:[string,string] }) {
   const max = Math.max(previous || 0, current || 0, 1)
-  return <div className="comparison-bars">{[[labels[0], previous], [labels[1], current]].map(([label, value], index) => <div key={String(label)}><span>{label}</span><div><i className={index ? 'current' : ''} style={{ width: `${Number(value || 0) / max * 100}%` }} /></div><b>{value == null ? '-' : Number(value).toLocaleString()}건</b></div>)}</div>
+  return <div className="comparison-bars">{[[labels[0], previous], [labels[1], current]].map(([label, value], index) => <div className="tooltip-row" tabIndex={0} key={String(label)}><span>{label}</span><div><i className={index ? 'current' : ''} style={{ width: `${Number(value || 0) / max * 100}%` }} /></div><b>{value == null ? '-' : Number(value).toLocaleString()}건</b><span className="bar-tooltip"><b>{label}</b><strong>{value == null ? '비교 데이터 없음' : `${Number(value).toLocaleString()}건`}</strong></span></div>)}</div>
 }
 
 function NewsCards({ news, company, change }: { news:NonNullable<Report['news']>;company?:string;change?:number|null }) {
@@ -424,3 +446,4 @@ function groupBy<T>(items: T[], getKey: (item: T) => string) {
 
 function fmtChange(value: number | null) { return value == null ? '기준 없음' : `${value > 0 ? '+' : ''}${value.toLocaleString()}건` }
 function formatDate(value: string) { return new Date(value).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) }
+function formatDateTime(value: string) { return new Date(value).toLocaleString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) }

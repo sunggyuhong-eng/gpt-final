@@ -78,6 +78,24 @@ def test_category_history_contains_major_and_subcategory_counts(tmp_path, monkey
     assert result["periods"][0]["sub_by_major"]["게임제작"]["게임기획"] == 1
 
 
+def test_category_history_separates_unique_major_jobs_from_overlapping_sub_tags(tmp_path, monkeypatch):
+    monkeypatch.setattr(pipeline, "ROOT", tmp_path)
+    snapshots = tmp_path / "data" / "snapshots"
+    snapshots.mkdir(parents=True)
+    (snapshots / "2026-09.json").write_text(json.dumps({
+        "period": "2026-09", "is_sample": False,
+        "jobs": [
+            {"job_major_categories": ["사운드·영상제작"], "job_subcategories": ["사운드 제작", "영상제작·편집"]},
+            {"job_major_categories": ["사운드·영상제작"], "job_subcategories": ["영상제작·편집"]},
+        ],
+    }, ensure_ascii=False), encoding="utf-8")
+    pipeline.update_category_history()
+    result = json.loads((tmp_path / "data" / "category-history.json").read_text(encoding="utf-8"))
+    period = result["periods"][0]
+    assert period["major"]["사운드·영상제작"] == 2
+    assert sum(period["sub_by_major"]["사운드·영상제작"].values()) == 3
+
+
 def test_employment_type_combinations_are_counted_by_each_type():
     current = [job("1"), job("2")]
     previous = [job("1")]

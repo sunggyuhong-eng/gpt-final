@@ -91,6 +91,8 @@ def main() -> None:
         "comparison_label": f"{baseline_period} → {current_period}",
         "is_sample": is_sample,
         "status": "pending_api_key",
+        "report_schema_version": 3,
+        "generated_at": None,
         "error": "월간 비교 데이터가 적용되었습니다. GPT 분석은 OPENAI_API_KEY 등록 후 수동 생성됩니다.",
         "analysis": None,
         "markdown": None,

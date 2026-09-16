@@ -28,5 +28,5 @@ export type ReportAnalysis = {
   news_signals:{company:string;headline:string;comment:string;evidence_level:'직접 근거'|'관련 가능성'|'근거 부족';news_urls:string[]}[];
   watchlist:string[]; limitations:string[];
 }
-export type Report = { period:string; baseline_period?:string; current_period?:string; comparison_label?:string; is_sample:boolean; status:string; statistics:any; analysis?:ReportAnalysis|null; markdown:string|null; error?:string; methodology?:ReportMethodology; news?:NewsItem[] }
+export type Report = { period:string; baseline_period?:string; current_period?:string; comparison_label?:string; is_sample:boolean; status:string; statistics:any; analysis?:ReportAnalysis|null; markdown:string|null; error?:string; methodology?:ReportMethodology; news?:NewsItem[]; generated_at?:string|null; report_schema_version?:number }
 export type Status = { is_sample:boolean; success:boolean; finished_at:string; message?:string; sources:{name:string;status:string;count:number;error?:string}[] }

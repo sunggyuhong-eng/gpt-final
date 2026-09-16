@@ -238,7 +238,18 @@ def run(mode: str = "daily", force: bool = False, now: datetime | None = None) -
                 for job in jobs
             ]
             write_json(ROOT / "data" / "news" / f"{month}.json", {"period": month, "collected_at": status["finished_at"], "items": news})
-            write_json(ROOT / "data" / "reports" / f"{month}.json", {"period": month, "is_sample": False, "status": "analysis_pending", "statistics": stats, "job_examples": job_examples, "news": news})
+            write_json(ROOT / "data" / "reports" / f"{month}.json", {
+                "period": month,
+                "is_sample": False,
+                "status": "analysis_pending",
+                "report_schema_version": 3,
+                "generated_at": None,
+                "analysis": None,
+                "markdown": None,
+                "statistics": stats,
+                "job_examples": job_examples,
+                "news": news,
+            })
             update_history(month, stats)
     write_json(ROOT / "data" / "collection-status.json", status)
     return status
