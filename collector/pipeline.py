@@ -246,6 +246,7 @@ def run(mode: str = "daily", force: bool = False, now: datetime | None = None) -
                 "generated_at": None,
                 "analysis": None,
                 "markdown": None,
+                "pdf_path": None,
                 "statistics": stats,
                 "job_examples": job_examples,
                 "news": news,

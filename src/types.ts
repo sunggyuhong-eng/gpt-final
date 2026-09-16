@@ -16,6 +16,7 @@ export type CategoryHistory = {
   periods:{period:string;major:Record<string,number>;sub:Record<string,number>;sub_by_major?:Record<string,Record<string,number>>}[]
 }
 export type StatRow = { name:string; current:number; previous:number|null; change:number|null }
+export type CompanyGroups = { groups:Record<string,{members:string[];note?:string}> }
 export type NewsItem = { source:string;title:string;url:string;published_at?:string|null;summary?:string|null;issue_type?:string;companies?:string[] }
 export type ReportMethodology = {
   prompt_version:string; system_prompt:string; input_description:string; rules:string[];
@@ -28,5 +29,5 @@ export type ReportAnalysis = {
   news_signals:{company:string;headline:string;comment:string;evidence_level:'직접 근거'|'관련 가능성'|'근거 부족';news_urls:string[]}[];
   watchlist:string[]; limitations:string[];
 }
-export type Report = { period:string; baseline_period?:string; current_period?:string; comparison_label?:string; is_sample:boolean; status:string; statistics:any; analysis?:ReportAnalysis|null; markdown:string|null; error?:string; methodology?:ReportMethodology; news?:NewsItem[]; generated_at?:string|null; report_schema_version?:number }
+export type Report = { period:string; baseline_period?:string; current_period?:string; comparison_label?:string; is_sample:boolean; status:string; statistics:any; analysis?:ReportAnalysis|null; markdown:string|null; error?:string; methodology?:ReportMethodology; news?:NewsItem[]; generated_at?:string|null; report_schema_version?:number; pdf_path?:string|null }
 export type Status = { is_sample:boolean; success:boolean; finished_at:string; message?:string; sources:{name:string;status:string;count:number;error?:string}[] }

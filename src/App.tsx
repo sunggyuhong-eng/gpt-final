@@ -3,17 +3,18 @@ import { NavLink, Route, Routes, useNavigate, useSearchParams } from 'react-rout
 import {
   ArrowUpRight, BarChart3, BriefcaseBusiness, Building2, CalendarDays,
   CheckCircle2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Clock3, ExternalLink, FileText, LayoutDashboard,
-  MapPin, Search, Sparkles, TrendingUp, UsersRound, Newspaper, AlertCircle,
+  MapPin, Search, Sparkles, TrendingUp, UsersRound, Newspaper, AlertCircle, ShieldCheck, Download, Database,
 } from 'lucide-react'
 import { loadAll } from './data'
+import { compareSnapshots, companyGroupName, dataQuality } from './analysis'
 import { pageWindow } from './pagination'
-import type { CategoryHistory, History, Job, Report, Snapshot, Status } from './types'
+import type { CategoryHistory, CompanyGroups, History, Job, Report, Snapshot, Status } from './types'
 
-type Data = { snapshot: Snapshot; history: History; categoryHistory: CategoryHistory; report: Report; status: Status }
+type Data = { snapshot: Snapshot; history: History; categoryHistory: CategoryHistory; report: Report; status: Status; companyGroups:CompanyGroups; snapshots:Record<string,Snapshot> }
 const nav = [
   ['/', '대시보드', LayoutDashboard], ['/jobs', '채용공고', BriefcaseBusiness],
   ['/categories', '직무별', BarChart3], ['/companies', '회사별', Building2],
-  ['/reports', '월간 리포트', FileText],
+  ['/reports', '월간 리포트', FileText], ['/quality', '데이터 진단', ShieldCheck],
 ] as const
 
 export default function App() {
@@ -31,9 +32,10 @@ export default function App() {
         <Route path="/categories" element={<Categories data={data} />} />
         <Route path="/companies" element={<Companies data={data} />} />
         <Route path="/reports" element={<Reports data={data} />} />
+        <Route path="/quality" element={<DataQuality data={data} />} />
       </Routes>
     </main>
-    <footer className="site-footer">© KONGSTUDIOS. All rights reserved.</footer>
+    <footer className="site-footer"><span>데이터 {data.snapshot.period} · 리포트 스키마 v{data.report.report_schema_version || 1}{data.report.generated_at ? ` · GPT ${formatDateTime(data.report.generated_at)}` : ''}</span><b>© KONGSTUDIOS</b></footer>
     <MobileNav />
   </div>
 }
@@ -130,30 +132,34 @@ function Jobs({ data }: { data: Data }) {
   return <section>
     <PageTitle eyebrow="OPEN POSITIONS" title="채용공고" description="원하는 회사와 직무를 빠르게 찾아보세요." count={list.length} />
     <div className="filter-card"><label className="search-box"><Search size={20} /><input value={q} onChange={e => setQ(e.target.value)} placeholder="회사명, 공고명 또는 직무 검색" /></label><div className="filter-row"><Select value={company} set={setCompany} label="전체 회사" values={jobs.map(j => j.company)} /><Select value={major} set={setMajor} label="전체 대분류" values={jobs.flatMap(majorCategories)} /><Select value={sub} set={setSub} label="전체 소분류" values={availableSubs} /><Select value={career} set={setCareer} label="전체 경력" values={jobs.map(j => j.career)} /><Select value={location} set={setLocation} label="전체 지역" values={jobs.map(j => j.location)} /><Select value={employment} set={setEmployment} label="전체 고용형태" values={jobs.flatMap(j => splitValues(j.employment_type))} /><select value={sort} onChange={e => setSort(e.target.value)}><option value="latest">최신 등록순</option><option value="deadline">마감 임박순</option></select>{hasFilter && <button className="text-button" onClick={clear}>필터 초기화</button>}</div></div>
-    <div className="result-head"><b>{list.length.toLocaleString()}개의 공고</b><span>공고 제목을 누르면 게임잡 원문으로 이동해요.</span></div>
+    <div className="result-head"><b>{list.length.toLocaleString()}개의 공고</b><div className="result-actions"><span>공고 제목을 누르면 게임잡 원문으로 이동해요.</span><button className="outline-button" onClick={() => downloadJobsCsv(list)}><Download size={14} /> CSV 다운로드</button></div></div>
     {list.length ? <><JobCards jobs={pagedJobs} detailed signals={jobSignals(data.report)} /><Pagination page={page} total={pageCount} setPage={setPage} /></> : <Empty title="조건에 맞는 공고가 없어요" text="검색어나 필터를 변경해 보세요." />}
   </section>
 }
 
 function Categories({ data }: { data: Data }) {
   const [params, setParams] = useSearchParams()
-  const counts = countCategories(data.snapshot.jobs)
+  const periods = Object.keys(data.snapshots).sort()
+  const [baseline, setBaseline] = useState(periods.at(-2) || periods[0] || '')
+  const [current, setCurrent] = useState(periods.at(-1) || data.snapshot.period.slice(0, 7))
+  const currentSnapshot = data.snapshots[current] || data.snapshot
+  const counts = countCategories(currentSnapshot.jobs)
   const selected = params.get('major') || counts[0]?.name || ''
   const selectedSub = params.get('sub') || ''
   const [subQuery, setSubQuery] = useState('')
   const [page, setPage] = useState(1)
-  const majorJobs = selected ? data.snapshot.jobs.filter(j => majorCategories(j).includes(selected)) : []
+  const majorJobs = selected ? currentSnapshot.jobs.filter(j => majorCategories(j).includes(selected)) : []
   const taxonomy = data.categoryHistory.taxonomy || {}
   const subCounts = countSubCategoriesForMajor(majorJobs, selected, taxonomy)
   const visibleSubs = subCounts.filter(item => item.name.toLowerCase().includes(subQuery.trim().toLowerCase()))
   const jobs = selectedSub ? majorJobs.filter(j => subCategoriesForMajor(j, selected, taxonomy).includes(selectedSub)) : majorJobs
   const pageSize = 40, pageCount = Math.max(1, Math.ceil(jobs.length / pageSize))
-  const trend = data.categoryHistory.periods.map(item => ({ month: item.period, total_open: (selectedSub ? (item.sub_by_major?.[selected]?.[selectedSub] ?? item.sub[selectedSub]) : item.major[selected]) || 0, new_count: null, closed_count: null }))
-  const currentCount = trend.at(-1)?.total_open || jobs.length
-  const previousCount = trend.length > 1 ? trend.at(-2)?.total_open ?? null : null
+  const currentPeriod = data.categoryHistory.periods.find(item => item.period === current)
+  const previousPeriod = data.categoryHistory.periods.find(item => item.period === baseline)
+  const trend = data.categoryHistory.periods.filter(item => item.period <= current).map(item => ({ month: item.period, total_open: (selectedSub ? (item.sub_by_major?.[selected]?.[selectedSub] ?? item.sub[selectedSub]) : item.major[selected]) || 0, new_count: null, closed_count: null }))
+  const currentCount = selectedSub ? (currentPeriod?.sub_by_major?.[selected]?.[selectedSub] ?? currentPeriod?.sub[selectedSub] ?? jobs.length) : (currentPeriod?.major[selected] ?? jobs.length)
+  const previousCount = previousPeriod ? (selectedSub ? (previousPeriod.sub_by_major?.[selected]?.[selectedSub] ?? previousPeriod.sub[selectedSub] ?? 0) : (previousPeriod.major[selected] ?? 0)) : null
   const change = previousCount == null ? null : currentCount - previousCount
-  const currentPeriod = data.categoryHistory.periods.at(-1)
-  const previousPeriod = data.categoryHistory.periods.at(-2)
   const majorCurrent = currentPeriod?.major[selected] ?? majorJobs.length
   const majorPrevious = previousPeriod?.major[selected] ?? null
   const taxonomySubs = taxonomy[selected] || []
@@ -163,13 +169,13 @@ function Categories({ data }: { data: Data }) {
   const subCurrent = subTagTotal(currentPeriod) ?? subCounts.reduce((sum, item) => sum + item.count, 0)
   const subPrevious = subTagTotal(previousPeriod)
   const categoryChange = (kind: 'major' | 'sub', name: string, major = selected) => {
-    const periods = data.categoryHistory.periods
-    if (periods.length < 2) return null
-    if (kind === 'sub') return (periods.at(-1)?.sub_by_major?.[major]?.[name] ?? periods.at(-1)?.sub[name] ?? 0) - (periods.at(-2)?.sub_by_major?.[major]?.[name] ?? periods.at(-2)?.sub[name] ?? 0)
-    return (periods.at(-1)?.major[name] || 0) - (periods.at(-2)?.major[name] || 0)
+    if (!currentPeriod || !previousPeriod) return null
+    if (kind === 'sub') return (currentPeriod.sub_by_major?.[major]?.[name] ?? currentPeriod.sub[name] ?? 0) - (previousPeriod.sub_by_major?.[major]?.[name] ?? previousPeriod.sub[name] ?? 0)
+    return (currentPeriod.major[name] || 0) - (previousPeriod.major[name] || 0)
   }
   useEffect(() => { setPage(1); setSubQuery('') }, [selected, selectedSub])
   return <section className="category-page"><PageTitle eyebrow="JOB CATEGORY" title="직무별 채용" description="대분류에서 소분류를 선택하고 해당 직무의 변화와 공고를 확인하세요." />
+    <ComparisonControl periods={periods} baseline={baseline} current={current} setBaseline={setBaseline} setCurrent={setCurrent} />
     <div className="taxonomy-note"><b>집계 기준</b><span>대분류는 중복을 제거한 공고 수입니다. 한 공고에 여러 소분류가 지정될 수 있어 소분류 합계는 대분류 공고 수와 다를 수 있으며, 선택한 대분류에 속한 소분류만 표시합니다.</span></div>
     <div className="category-browser">
       <aside className="major-rail"><div className="category-browser-title"><span>대분류 · 고유 공고</span><b>직무 선택</b></div><div className="major-list">{counts.map(x => { const delta = categoryChange('major', x.name); const previous = delta == null ? null : x.count - delta; return <button className={selected === x.name ? 'active' : ''} onClick={() => setParams({ major: x.name })} key={x.name} title={`${x.name} 고유 공고: ${previous == null ? '비교 기준 없음' : `${previous.toLocaleString()} → `}${x.count.toLocaleString()}건${delta == null ? '' : ` (${fmtChange(delta)})`}`}><span>{x.name}</span><span className="category-metric"><b>{x.count.toLocaleString()}건</b><ChangeBadge value={delta} /></span></button> })}</div></aside>
@@ -188,48 +194,92 @@ function Categories({ data }: { data: Data }) {
 }
 
 function Companies({ data }: { data: Data }) {
-  const companies = Object.entries(groupBy(data.snapshot.jobs, j => j.company)).sort((a, b) => b[1].length - a[1].length)
-  const [selected, setSelected] = useState(companies[0]?.[0] || '')
+  const periods = Object.keys(data.snapshots).sort()
+  const [baseline, setBaseline] = useState(periods.at(-2) || periods[0] || '')
+  const [current, setCurrent] = useState(periods.at(-1) || data.snapshot.period.slice(0, 7))
+  const [mode, setMode] = useState<'legal'|'group'>('legal')
+  const currentSnapshot = data.snapshots[current] || data.snapshot
+  const previousSnapshot = data.snapshots[baseline]
+  const comparison = compareSnapshots(currentSnapshot, previousSnapshot, data.companyGroups)
+  const companyKey = (job:Job) => mode === 'group' ? companyGroupName(job.company, data.companyGroups) : job.company
+  const companies = Object.entries(groupBy(currentSnapshot.jobs, companyKey)).sort((a, b) => b[1].length - a[1].length)
+  const [selected, setSelected] = useState('')
   const [query, setQuery] = useState('')
+  const selectedCompany = companies.some(([name]) => name === selected) ? selected : companies[0]?.[0] || ''
   const filtered = companies.filter(([name]) => name.toLowerCase().includes(query.toLowerCase()))
-  const jobs = companies.find(x => x[0] === selected)?.[1] || []
+  const jobs = companies.find(x => x[0] === selectedCompany)?.[1] || []
   const profile = jobs[0]
-  const companyChanges = new Map<string, number | null>((data.report.statistics?.by_company || []).map((row: {name:string;change:number|null}) => [row.name, row.change]))
-  const selectedChange = companyChanges.get(selected) ?? null
-  const companyRow = (data.report.statistics?.by_company || []).find((row: {name:string}) => row.name === selected)
+  const rows = mode === 'group' ? comparison.by_company_group : comparison.by_company
+  const companyChanges = new Map<string, number | null>(rows.map(row => [row.name, row.change]))
+  const selectedChange = companyChanges.get(selectedCompany) ?? null
+  const companyRow = rows.find(row => row.name === selectedCompany)
   const jobMix = countCategories(jobs).slice(0, 8)
-  const relatedNews = matchCompanyNews(selected, data.report.news || []).slice(0, 5)
+  const memberNames = [...new Set(jobs.map(job => job.company))]
+  const relatedNews = [...new Map(memberNames.flatMap(name => matchCompanyNews(name, data.report.news || [])).map(item => [item.url, item])).values()].slice(0, 5)
+  const signals = current === data.report.current_period ? jobSignals(data.report) : {}
   return <section><PageTitle eyebrow="COMPANY DIRECTORY" title="회사별 채용" description="기업정보와 진행 중인 공고를 함께 확인하세요." count={companies.length} countLabel="개 회사" />
-    <div className="company-layout"><aside className="company-list"><label className="mini-search"><Search size={17} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="회사 검색" /></label><div>{filtered.map(([name, items]) => <button onClick={() => setSelected(name)} className={name === selected ? 'active' : ''} key={name}><Logo name={name} url={items[0].logo_url} /><span><b>{name}</b><small>{items[0].representative_game || '대표게임 정보 없음'}</small></span><span className="company-list-metric"><strong>{items.length}</strong><ChangeBadge value={companyChanges.get(name) ?? null} /></span></button>)}</div></aside>
-      {selected && <article className="company-detail"><div className="company-hero"><Logo name={selected} url={profile?.logo_url || null} /><div><span>COMPANY PROFILE</span><h2>{selected}</h2><p>{profile?.representative_game || '대표게임 정보 없음'}</p></div><div className="company-change"><small>{data.report.comparison_label || '이전 공식 스냅샷 기준'}</small><ChangeBadge value={selectedChange} large /></div>{profile?.company_url && <a className="outline-button" href={profile.company_url} target="_blank" rel="noreferrer">게임잡 기업정보 <ExternalLink size={15} /></a>}</div><div className="profile-grid"><Profile label="기업형태" value={profile?.company_type} /><Profile label="설립연도" value={profile?.established_year} /><Profile label="사원수" value={profile?.employee_count} /><Profile label="진행 중인 공고" value={`${jobs.length}건`} highlight /><Profile wide label="대표게임" value={profile?.representative_game} /><Profile wide label="주요사업" value={profile?.main_business} /></div>
-      <div className="company-analysis-grid"><Panel eyebrow="HIRING MOMENTUM" title="채용 변화"><div className="company-kpi"><span>이전</span><b>{companyRow?.previous?.toLocaleString() ?? '-'}건</b><i /><span>현재</span><b>{companyRow?.current?.toLocaleString() ?? jobs.length.toLocaleString()}건</b></div><p>{selectedChange == null ? '비교 가능한 이전 데이터가 없습니다.' : `전월 대비 ${fmtChange(selectedChange)} 변했습니다.`}</p></Panel><Panel eyebrow="JOB MIX" title="채용 직무 구성"><Bars rows={jobMix} /></Panel></div>
-      <section className="company-news"><div className="section-heading compact"><div><span>NEWS SIGNAL</span><h2>관련 뉴스와 채용 시그널</h2></div></div>{relatedNews.length ? <NewsCards news={relatedNews} company={selected} change={selectedChange} /> : <Empty icon={Newspaper} title="연결된 뉴스가 없어요" text="확인된 뉴스가 없으므로 공고 변화의 원인을 추정하지 않습니다." />}</section>
-      <div className="section-heading compact"><div><span>OPEN POSITIONS</span><h2>진행 중인 공고</h2></div><b>{jobs.length}건</b></div><JobCards jobs={jobs} detailed signals={jobSignals(data.report)} /></article>}
+    <div className="directory-controls"><ComparisonControl periods={periods} baseline={baseline} current={current} setBaseline={setBaseline} setCurrent={setCurrent} /><div className="segmented-control" aria-label="회사 집계 기준"><button className={mode === 'legal' ? 'active' : ''} onClick={() => { setMode('legal'); setSelected('') }}>법인별</button><button className={mode === 'group' ? 'active' : ''} onClick={() => { setMode('group'); setSelected('') }}>그룹별</button></div></div>
+    <div className="company-layout"><aside className="company-list"><label className="mini-search"><Search size={17} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="회사 검색" /></label><div>{filtered.map(([name, items]) => <button onClick={() => setSelected(name)} className={name === selectedCompany ? 'active' : ''} key={name}><Logo name={name} url={items[0].logo_url} /><span><b>{name}</b><small>{mode === 'group' ? `${new Set(items.map(job => job.company)).size}개 법인·스튜디오` : items[0].representative_game || '대표게임 정보 없음'}</small></span><span className="company-list-metric"><strong>{items.length}</strong><ChangeBadge value={companyChanges.get(name) ?? null} /></span></button>)}</div></aside>
+      {selectedCompany && <article className="company-detail"><div className="company-hero"><Logo name={selectedCompany} url={profile?.logo_url || null} /><div><span>{mode === 'group' ? 'COMPANY GROUP' : 'COMPANY PROFILE'}</span><h2>{selectedCompany}</h2><p>{mode === 'group' ? memberNames.join(' · ') : profile?.representative_game || '대표게임 정보 없음'}</p></div><div className="company-change"><small>{baseline} → {current}</small><ChangeBadge value={selectedChange} large /></div>{mode === 'legal' && profile?.company_url && <a className="outline-button" href={profile.company_url} target="_blank" rel="noreferrer">게임잡 기업정보 <ExternalLink size={15} /></a>}</div><div className="profile-grid"><Profile label={mode === 'group' ? '포함 법인' : '기업형태'} value={mode === 'group' ? `${memberNames.length}개` : profile?.company_type} /><Profile label="설립연도" value={mode === 'group' ? '그룹별 상이' : profile?.established_year} /><Profile label="사원수" value={mode === 'group' ? '법인별 상이' : profile?.employee_count} /><Profile label="진행 중인 공고" value={`${jobs.length}건`} highlight /><Profile wide label={mode === 'group' ? '포함 회사' : '대표게임'} value={mode === 'group' ? memberNames.join(', ') : profile?.representative_game} /><Profile wide label="주요사업" value={profile?.main_business} /></div>
+      <div className="company-analysis-grid"><Panel eyebrow="HIRING MOMENTUM" title="채용 변화"><div className="company-kpi"><span>이전</span><b>{companyRow?.previous?.toLocaleString() ?? '-'}건</b><i /><span>현재</span><b>{companyRow?.current?.toLocaleString() ?? jobs.length.toLocaleString()}건</b></div><p>{selectedChange == null ? '비교 가능한 이전 데이터가 없습니다.' : `${baseline} 대비 ${fmtChange(selectedChange)} 변했습니다.`}</p></Panel><Panel eyebrow="JOB MIX" title="채용 직무 구성"><Bars rows={jobMix} /></Panel></div>
+      <section className="company-news"><div className="section-heading compact"><div><span>NEWS SIGNAL</span><h2>관련 뉴스와 채용 시그널</h2></div></div>{relatedNews.length ? <NewsCards news={relatedNews} company={selectedCompany} change={selectedChange} /> : <Empty icon={Newspaper} title="연결된 뉴스가 없어요" text="확인된 뉴스가 없으므로 공고 변화의 원인을 추정하지 않습니다." />}</section>
+      <div className="section-heading compact"><div><span>OPEN POSITIONS</span><h2>진행 중인 공고</h2></div><b>{jobs.length}건</b></div><JobCards jobs={jobs} detailed signals={signals} /></article>}
     </div>
   </section>
 }
 
 function Reports({ data }: { data: Data }) {
   const report = data.report
-  const analysis = report.analysis
-  const hasLegacyReport = !analysis && report.status === 'complete' && Boolean(report.markdown)
+  const periods = Object.keys(data.snapshots).sort()
+  const [baseline, setBaseline] = useState(report.baseline_period || periods.at(-2) || periods[0] || '')
+  const [current, setCurrent] = useState(report.current_period || periods.at(-1) || data.snapshot.period.slice(0, 7))
+  const officialPair = baseline === report.baseline_period && current === (report.current_period || report.period)
+  const stats = compareSnapshots(data.snapshots[current] || data.snapshot, data.snapshots[baseline], data.companyGroups)
+  const analysis = officialPair ? report.analysis : null
+  const hasLegacyReport = officialPair && !analysis && report.status === 'complete' && Boolean(report.markdown)
   const hasReportContent = Boolean(analysis || hasLegacyReport)
-  const stats = report.statistics || {}
   const jobMoves = movementRows(stats.by_category || [])
   const companyMoves = movementRows(stats.by_company || [])
   const careerMoves = movementRows(stats.by_career || [])
   const emptyText = '이번 달 해설을 준비하고 있습니다. 통계와 그래프는 정상적으로 확인할 수 있습니다.'
-  return <section><PageTitle eyebrow="MONTHLY INSIGHT" title="월간 리포트" description={`${report.period} 채용시장 분석을 확인하세요.`} />
-    <div className="report-hero"><div><FileText size={28} /><span>{hasReportContent ? '분석 완료' : report.status === 'complete' ? '생성 결과 확인 필요' : '통계 공개 · 해설 준비 중'}</span><h2>{report.period.replace('-', '년 ')}월<br />게임업계 채용 리포트</h2><p>{analysis?.outlook || (report.comparison_label ? `${report.comparison_label} 채용 변화와 업계 뉴스를 함께 검토합니다.` : '채용 변화와 업계 뉴스를 함께 검토합니다.')}</p>{report.generated_at && <small className="report-generated">GPT 생성 {formatDateTime(report.generated_at)}</small>}</div>{report.markdown && <a className="primary-button" href={`reports/${report.period}.md`} download>리포트 다운로드 <ArrowUpRight size={18} /></a>}</div>
+  return <section><PageTitle eyebrow="MONTHLY INSIGHT" title="월간 리포트" description={`${current} 채용시장 분석을 확인하세요.`} />
+    <ComparisonControl periods={periods} baseline={baseline} current={current} setBaseline={setBaseline} setCurrent={setCurrent} />
+    <div className="report-hero"><div><FileText size={28} /><span>{!officialPair ? '선택 기간 통계 비교' : hasReportContent ? '분석 완료' : report.status === 'complete' ? '생성 결과 확인 필요' : '통계 공개 · 해설 준비 중'}</span><h2>{current.replace('-', '년 ')}월<br />게임업계 채용 리포트</h2><p>{analysis?.outlook || `${baseline} → ${current} 채용 변화를 비교합니다.`}</p>{officialPair && report.generated_at && <small className="report-generated">GPT 생성 {formatDateTime(report.generated_at)}</small>}</div><div className="report-downloads">{officialPair && report.pdf_path && <a className="primary-button" href={report.pdf_path} download><Download size={17} /> PDF 요약본</a>}{officialPair && report.markdown && <a className="outline-button light" href={`reports/${report.period}.md`} download>Markdown <ArrowUpRight size={16} /></a>}</div></div>
     {report.is_sample && <div className="status-strip warning">화면 검증용 예시 리포트입니다.</div>}
+    {!officialPair && <div className="data-warning"><AlertCircle size={20} /><div><b>선택한 기간은 통계 비교 모드입니다.</b><p>GPT 시장 해설과 PDF 요약본은 최신 공식 비교 기간인 {report.comparison_label || `${report.baseline_period} → ${report.current_period}`}에만 제공됩니다.</p></div></div>}
     <div className="report-kpis"><Kpi icon={BriefcaseBusiness} label="전체 공개 공고" value={`${(stats.total_open ?? 0).toLocaleString()}건`} sub={`전월 대비 ${fmtChange(stats.change)}`} primary /><Kpi icon={Sparkles} label="신규 공고" value={`${stats.new_count ?? '-'}건`} sub="이번 기간 새로 확인" /><Kpi icon={Clock3} label="종료 공고" value={`${stats.closed_count ?? '-'}건`} sub="이전 기간 대비 종료" /><Kpi icon={CheckCircle2} label="유지 공고" value={`${stats.maintained_count ?? '-'}건`} sub="두 기간 모두 확인" /></div>
     <div className="report-overview-grid"><Panel eyebrow="MARKET SIZE" title="전체 공고 비교"><ComparisonBars previous={stats.previous_total} current={stats.total_open} labels={[report.baseline_period || '이전 비교 데이터 없음', report.current_period || report.period]} /></Panel>{analysis ? <article className="analyst-summary"><span>ANALYST VIEW</span><h2>{analysis.outlook}</h2><p>{analysis.market_comment}</p><ul>{analysis.highlights.map(item => <li key={item}>{item}</li>)}</ul></article> : hasLegacyReport ? <article className="analyst-summary legacy"><span>ANALYST VIEW · 이전 형식</span><h2>생성된 시장 해설을 불러왔어요</h2><p>리포트 생성은 완료됐습니다. 아래에서 전체 해설을 확인할 수 있으며, 최신 구조로 다시 생성하면 카드형 분석으로 표시됩니다.</p></article> : report.status === 'complete' ? <Empty icon={AlertCircle} title="생성 결과 형식을 확인해 주세요" text="작업은 완료됐지만 해설 본문이 저장되지 않았습니다. 최신 Generate GPT Report - OpenAI 워크플로를 실행해 주세요." /> : <Empty icon={Sparkles} title="시장 해설을 준비하고 있어요" text={emptyText} />}</div>
     <div className="section-heading compact"><div><span>MOMENTUM CHARTS</span><h2>직무·회사·경력별 증감</h2></div><p>막대 길이는 전월 대비 변화량을 나타냅니다.</p></div>
     <div className="report-chart-grid"><Panel eyebrow="JOB MOMENTUM" title="직무 강세·약세"><DeltaBars rows={jobMoves.slice(0, 10)} /></Panel><Panel eyebrow="COMPANY MOVERS" title="회사별 주요 변동"><DeltaBars rows={companyMoves.slice(0, 10)} /></Panel><Panel eyebrow="CAREER MIX" title="경력별 변화"><DeltaBars rows={careerMoves.slice(0, 8)} /></Panel><Panel eyebrow="EMPLOYMENT MIX" title="고용형태 변화"><DeltaBars rows={movementRows(stats.by_employment_type || []).slice(0, 8)} /></Panel></div>
     {analysis ? <StructuredReport analysis={analysis} data={data} /> : null}
     {hasLegacyReport && report.markdown ? <Panel className="report-panel legacy-report" eyebrow="GENERATED REPORT" title="생성된 시장 해설"><article className="report"><ReportMarkdown markdown={report.markdown} /></article></Panel> : null}
-    <ReportMethod report={report} />
+    {officialPair && <ReportMethod report={report} />}
   </section>
+}
+
+function DataQuality({ data }: { data:Data }) {
+  const quality = dataQuality(data.snapshot, data.categoryHistory.taxonomy || {}, data.report.statistics?.total_open)
+  const periods = Object.keys(data.snapshots).sort()
+  const failedSources = (data.status.sources || []).filter(source => source.status !== 'success')
+  const groupRows = Object.entries(data.companyGroups.groups || {}).map(([name, detail]) => ({ name, members: detail.members.filter(member => data.snapshot.jobs.some(job => job.company.includes(member))) })).filter(row => row.members.length)
+  const warnings = [
+    quality.duplicateIds ? `중복 공고 ID ${quality.duplicateIds}건` : '',
+    quality.noCategory ? `대분류 누락 ${quality.noCategory}건` : '',
+    quality.otherCategory ? `기타 직무 분류 ${quality.otherCategory}건` : '',
+    quality.reportMismatch ? `리포트와 최신 스냅샷 ${Math.abs(quality.reportMismatch)}건 차이` : '',
+    failedSources.length ? `수집 실패·비활성 소스 ${failedSources.length}개` : '',
+  ].filter(Boolean)
+  return <section><PageTitle eyebrow="DATA RELIABILITY" title="데이터 품질 진단" description="채용 통계와 리포트가 어떤 상태인지 숫자로 확인하세요." />
+    <div className="quality-hero"><div className={`quality-score ${quality.score >= 95 ? 'good' : quality.score >= 85 ? 'warn' : 'bad'}`}><span>DATA QUALITY SCORE</span><strong>{quality.score}</strong><small>/ 100</small></div><div><h2>{quality.score >= 95 ? '현재 데이터는 안정적이에요' : '확인이 필요한 데이터가 있어요'}</h2><p>중복, 분류 누락, 필드 완성도와 리포트 정합성을 기준으로 계산했습니다. 점수는 데이터 신뢰도 점검용이며 채용시장 자체의 품질을 의미하지 않습니다.</p></div></div>
+    <div className="quality-grid"><QualityMetric label="중복 공고 ID" value={quality.duplicateIds} unit="건" ok={!quality.duplicateIds} /><QualityMetric label="대분류 누락" value={quality.noCategory} unit="건" ok={!quality.noCategory} /><QualityMetric label="기타 직무 분류" value={quality.otherCategory} unit="건" ok={!quality.otherCategory} /><QualityMetric label="지역 미확인" value={quality.missingLocation} unit="건" ok={!quality.missingLocation} /><QualityMetric label="경력 미확인" value={quality.missingCareer} unit="건" ok={!quality.missingCareer} /><QualityMetric label="고용형태 미확인" value={quality.missingEmployment} unit="건" ok={!quality.missingEmployment} /></div>
+    <div className="quality-columns"><Panel eyebrow="AUTOMATED CHECK" title="자동 진단 결과">{warnings.length ? <ul className="quality-warnings">{warnings.map(item => <li key={item}><AlertCircle size={15} />{item}</li>)}</ul> : <div className="quality-ok"><CheckCircle2 size={24} /><div><b>중요한 정합성 오류가 없습니다.</b><p>최신 스냅샷과 리포트의 전체 공고 수도 일치합니다.</p></div></div>}<dl className="quality-details"><div><dt>최신 스냅샷</dt><dd>{data.snapshot.period} · {data.snapshot.jobs.length.toLocaleString()}건</dd></div><div><dt>보유 월간 데이터</dt><dd>{periods.length}개 · {periods.join(', ')}</dd></div><div><dt>수집 완료</dt><dd>{formatDateTime(data.status.finished_at)}</dd></div><div><dt>GPT 리포트</dt><dd>{data.report.status}{data.report.generated_at ? ` · ${formatDateTime(data.report.generated_at)}` : ''}</dd></div><div><dt>뉴스 근거</dt><dd>{(data.report.news || []).length.toLocaleString()}건</dd></div></dl></Panel>
+      <Panel eyebrow="ENTITY NORMALIZATION" title="회사 그룹 매핑"><p className="panel-description">법인별 수치를 보존하면서 그룹 보기에서만 아래 명칭을 합산합니다.</p><div className="group-map-list">{groupRows.map(row => <div key={row.name}><b>{row.name}</b><span>{row.members.join(' · ')}</span></div>)}</div></Panel></div>
+    {quality.unknownSubs.length ? <div className="data-warning"><AlertCircle size={20} /><div><b>분류표에 없는 소분류가 있습니다.</b><p>{quality.unknownSubs.join(', ')}</p></div></div> : null}
+  </section>
+}
+
+function QualityMetric({ label, value, unit, ok }: {label:string;value:number;unit:string;ok:boolean}) {
+  return <article className={`quality-metric${ok ? ' ok' : ''}`}><span>{label}</span><strong>{value.toLocaleString()}<small>{unit}</small></strong><b>{ok ? '정상' : '확인 필요'}</b></article>
 }
 
 function StructuredReport({ analysis, data }: { analysis: NonNullable<Report['analysis']>; data:Data }) {
@@ -310,6 +360,10 @@ function renderInline(text: string) {
 
 function splitTableRow(line:string) { return line.replace(/^\||\|$/g, '').split('|').map(cell => cell.trim()) }
 
+function ComparisonControl({ periods, baseline, current, setBaseline, setCurrent }: {periods:string[];baseline:string;current:string;setBaseline:(value:string)=>void;setCurrent:(value:string)=>void}) {
+  return <div className="comparison-control"><div><Database size={17} /><span>비교 기간</span></div><label><small>이전</small><select value={baseline} onChange={event => setBaseline(event.target.value)}>{periods.filter(period => period < current).map(period => <option key={period}>{period}</option>)}</select></label><i>→</i><label><small>현재</small><select value={current} onChange={event => setCurrent(event.target.value)}>{periods.filter(period => period > baseline).map(period => <option key={period}>{period}</option>)}</select></label><b>{baseline} 대비 {current}</b></div>
+}
+
 function PageTitle({ eyebrow, title, description, count, countLabel = '개 공고' }: { eyebrow: string; title: string; description: string; count?: number; countLabel?: string }) {
   return <div className="page-title"><div><span>{eyebrow}</span><h1>{title}</h1><p>{description}</p></div>{count !== undefined && <div className="page-count"><strong>{count.toLocaleString()}</strong><span>{countLabel}</span></div>}</div>
 }
@@ -324,9 +378,11 @@ function Panel({ eyebrow, title, children, className = '' }: { eyebrow?: string;
 
 function Trend({ history }: { history: History }) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null)
+  const [range, setRange] = useState(6)
   const gradientId = `trend-fill-${useId().replace(/:/g, '')}`
   if (!history.months.length) return <Empty title="아직 추이 데이터가 없어요" text="다음 월간 스냅샷부터 변화가 표시돼요." />
-  const values = history.months.map(row => row.total_open)
+  const months = history.months.slice(-Math.min(range, history.months.length))
+  const values = months.map(row => row.total_open)
   const min = Math.min(...values), max = Math.max(...values), spread = Math.max(1, max - min)
   const floor = Math.max(0, min - spread * .35), ceiling = max + spread * .25
   const plotLeft = 58, plotRight = 730, plotWidth = plotRight - plotLeft
@@ -335,9 +391,9 @@ function Trend({ history }: { history: History }) {
   const points = values.map((value, index) => `${x(index)},${y(value)}`).join(' ')
   const area = `${plotLeft},222 ${points} ${x(values.length - 1)},222`
   const gridValues = [0, 1, 2, 3].map(index => Math.round(floor + (ceiling - floor) * index / 3)).reverse()
-  const active = activeIndex == null ? null : history.months[activeIndex]
+  const active = activeIndex == null ? null : months[activeIndex]
   const hitWidth = plotWidth / Math.max(1, values.length - 1)
-  return <div className="chart interactive-chart" onMouseLeave={() => setActiveIndex(null)}><svg className="trend-svg" viewBox="0 0 760 270" preserveAspectRatio="xMidYMid meet" role="img" aria-label="월별 채용공고 추이"><defs><linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#3182f6" stopOpacity=".3" /><stop offset="1" stopColor="#3182f6" stopOpacity="0" /></linearGradient></defs>{gridValues.map(value => <g key={value}><line x1={plotLeft} x2={plotRight} y1={y(value)} y2={y(value)} /><text x="0" y={y(value) + 4}>{value.toLocaleString()}</text></g>)}<polygon points={area} fill={`url(#${gradientId})`} /><polyline points={points} /><g>{history.months.map((row, index) => <g key={row.month}><circle className={activeIndex === index ? 'active' : ''} cx={x(index)} cy={y(row.total_open)} r={activeIndex === index ? 7 : 5} /><text className="x-label" x={x(index)} y="252" textAnchor={index === 0 ? 'start' : index === history.months.length - 1 ? 'end' : 'middle'}>{row.month}</text><rect className="trend-hit-box" x={values.length === 1 ? plotLeft : Math.max(plotLeft, x(index) - hitWidth / 2)} y="0" width={values.length === 1 ? plotWidth : Math.min(hitWidth, plotRight - Math.max(plotLeft, x(index) - hitWidth / 2))} height="230" tabIndex={0} aria-label={`${row.month} 오픈 공고 ${row.total_open.toLocaleString()}건`} onMouseEnter={() => setActiveIndex(index)} onFocus={() => setActiveIndex(index)} onBlur={() => setActiveIndex(null)} /></g>)}</g>{activeIndex != null && <line className="trend-guide" x1={x(activeIndex)} x2={x(activeIndex)} y1="12" y2="222" />}</svg>{active && <div className={`chart-tooltip${activeIndex === 0 ? ' edge-left' : activeIndex === values.length - 1 ? ' edge-right' : ''}`} style={{ left: `${x(activeIndex!) / 760 * 100}%` }}><b>{active.month}</b><strong>오픈 공고 {active.total_open.toLocaleString()}건</strong>{active.new_count != null && <span>신규 {active.new_count.toLocaleString()}건</span>}{active.closed_count != null && <span>종료 {active.closed_count.toLocaleString()}건</span>}</div>}</div>
+  return <div className="trend-shell">{history.months.length > 3 && <div className="trend-range">{[3, 6, 12].filter(value => value <= history.months.length || value === 6).map(value => <button className={range === value ? 'active' : ''} onClick={() => { setRange(value); setActiveIndex(null) }} key={value}>{value}개월</button>)}</div>}<div className="chart interactive-chart" onMouseLeave={() => setActiveIndex(null)}><svg className="trend-svg" viewBox="0 0 760 270" preserveAspectRatio="xMidYMid meet" role="img" aria-label="월별 채용공고 추이"><defs><linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#3182f6" stopOpacity=".3" /><stop offset="1" stopColor="#3182f6" stopOpacity="0" /></linearGradient></defs>{gridValues.map(value => <g key={value}><line x1={plotLeft} x2={plotRight} y1={y(value)} y2={y(value)} /><text x="0" y={y(value) + 4}>{value.toLocaleString()}</text></g>)}<polygon points={area} fill={`url(#${gradientId})`} /><polyline points={points} /><g>{months.map((row, index) => <g key={row.month}><circle className={activeIndex === index ? 'active' : ''} cx={x(index)} cy={y(row.total_open)} r={activeIndex === index ? 7 : 5} /><text className="x-label" x={x(index)} y="252" textAnchor={index === 0 ? 'start' : index === months.length - 1 ? 'end' : 'middle'}>{row.month}</text><rect className="trend-hit-box" x={values.length === 1 ? plotLeft : Math.max(plotLeft, x(index) - hitWidth / 2)} y="0" width={values.length === 1 ? plotWidth : Math.min(hitWidth, plotRight - Math.max(plotLeft, x(index) - hitWidth / 2))} height="230" tabIndex={0} aria-label={`${row.month} 오픈 공고 ${row.total_open.toLocaleString()}건`} onMouseEnter={() => setActiveIndex(index)} onFocus={() => setActiveIndex(index)} onBlur={() => setActiveIndex(null)} /></g>)}</g>{activeIndex != null && <line className="trend-guide" x1={x(activeIndex)} x2={x(activeIndex)} y1="12" y2="222" />}</svg>{active && <div className={`chart-tooltip${activeIndex === 0 ? ' edge-left' : activeIndex === values.length - 1 ? ' edge-right' : ''}`} style={{ left: `${x(activeIndex!) / 760 * 100}%` }}><b>{active.month}</b><strong>오픈 공고 {active.total_open.toLocaleString()}건</strong>{active.new_count != null && <span>신규 {active.new_count.toLocaleString()}건</span>}{active.closed_count != null && <span>종료 {active.closed_count.toLocaleString()}건</span>}</div>}</div></div>
 }
 
 function RankList({ rows, to }: { rows: { name: string; count: number; description?: string | null }[]; to: string }) {
@@ -442,6 +498,23 @@ function splitValues(value:string|null) { return (value || '').split(',').map(it
 
 function groupBy<T>(items: T[], getKey: (item: T) => string) {
   return items.reduce<Record<string, T[]>>((result, item) => { (result[getKey(item)] ??= []).push(item); return result }, {})
+}
+
+function downloadJobsCsv(jobs:Job[]) {
+  const safe = (value:unknown) => {
+    const text = String(value ?? '').replaceAll('"', '""')
+    const guarded = /^[=+\-@]/.test(text) ? `'${text}` : text
+    return `"${guarded}"`
+  }
+  const headers = ['공고 ID','회사','공고명','대분류','소분류','경력','고용형태','지역','등록일','마감일','URL']
+  const rows = jobs.map(job => [job.id, job.company, job.title, majorCategories(job).join(' / '), subCategories(job).join(' / '), job.career, job.employment_type, job.location, job.posted_at, job.always_open ? '상시채용' : job.deadline, job.url])
+  const csv = '\ufeff' + [headers, ...rows].map(row => row.map(safe).join(',')).join('\r\n')
+  const url = URL.createObjectURL(new Blob([csv], { type:'text/csv;charset=utf-8' }))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `gamejob-openings-${new Date().toISOString().slice(0, 10)}.csv`
+  link.click()
+  URL.revokeObjectURL(url)
 }
 
 function fmtChange(value: number | null) { return value == null ? '기준 없음' : `${value > 0 ? '+' : ''}${value.toLocaleString()}건` }

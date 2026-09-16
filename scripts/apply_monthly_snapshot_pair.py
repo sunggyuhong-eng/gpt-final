@@ -96,6 +96,7 @@ def main() -> None:
         "error": "월간 비교 데이터가 적용되었습니다. GPT 분석은 OPENAI_API_KEY 등록 후 수동 생성됩니다.",
         "analysis": None,
         "markdown": None,
+        "pdf_path": None,
         "statistics": stats,
         "job_examples": [
             {key: job.get(key) for key in ("id", "company", "title", "url", "categories", "job_subcategories", "career", "location", "employment_type")}
@@ -108,8 +109,11 @@ def main() -> None:
     write_json(ROOT / "data" / "reports" / "latest.json", report)
 
     markdown = ROOT / "reports" / f"{current_period}.md"
+    pdf = ROOT / "reports" / f"{current_period}-game-hiring-summary.pdf"
     if markdown.exists():
         markdown.unlink()
+    if pdf.exists():
+        pdf.unlink()
 
     finished_at = datetime.now().astimezone().isoformat()
     write_json(ROOT / "data" / "collection-status.json", {
