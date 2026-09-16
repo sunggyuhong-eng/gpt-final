@@ -71,3 +71,18 @@ def test_generate_uses_openai_responses_api(tmp_path, monkeypatch):
     assert captured["headers"]["Authorization"] == "Bearer test-key"
     assert result["provider"] == "openai"
     assert result["markdown"] == "# 완료"
+
+
+def test_incomplete_response_is_not_saved_as_complete(tmp_path, monkeypatch):
+    monkeypatch.setattr(report_module, "ROOT", tmp_path)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    path = tmp_path / "data" / "reports" / "2026-09.json"
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps({"period": "2026-09", "statistics": {}, "job_examples": [], "news": []}), encoding="utf-8")
+
+    def fake_post(url, **kwargs):
+        return httpx.Response(200, json={"status": "incomplete", "incomplete_details": {"reason": "max_output_tokens"}, "output": []})
+
+    monkeypatch.setattr(report_module.httpx, "post", fake_post)
+    with pytest.raises(RuntimeError, match="max_output_tokens"):
+        report_module.generate("2026-09")

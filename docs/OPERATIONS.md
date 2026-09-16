@@ -2,7 +2,7 @@
 
 ## 매월 확인할 것
 
-1. 매월 1일 오전 9시 이후 GitHub `Actions`에서 `Monthly Collection and AI Report`를 엽니다.
+1. 매월 1일 오전 9시 이후 GitHub `Actions`에서 `Monthly Collection`을 엽니다.
 2. 초록 체크가 표시되는지 확인합니다.
 3. 웹사이트 상단 수집 시각과 `예시 데이터` 배지가 사라졌는지 확인합니다.
 4. `reports/YYYY-MM.md`가 생성됐는지 확인합니다.
@@ -16,7 +16,7 @@
 | `robots.txt 확인 실패` | robots 파일에 접근할 수 없음 | 일시 장애인지 확인 후 다음 날 재시도. 계속되면 해당 어댑터 중지 |
 | `목록 선택자와 일치하는 공고가 없습니다` | 사이트 HTML 구조 변경 가능성 | `collector/adapters/gamejob.py` 선택자 수정 필요 |
 | `pending_api_key` | AI 키가 없거나 전달되지 않음 | 저장소 Secret 이름이 정확히 `OPENAI_API_KEY`인지 확인 |
-| GPT 인증 오류 | 키 만료·오입력 | 노출된 키를 폐기하고 Secret을 새 키로 교체한 뒤 `Generate AI Report` 실행 |
+| GPT 인증 오류 | 키 만료·오입력 | 노출된 키를 폐기하고 Secret을 새 키로 교체한 뒤 `Generate GPT Report - OpenAI` 실행 |
 | GPT 한도 오류 | 결제 또는 사용 한도 | OpenAI Platform 사용 한도를 확인한 뒤 수동 재실행 |
 | Pages 404 | Pages 소스 또는 배포 실패 | Settings → Pages → Source가 GitHub Actions인지 확인 |
 | 화면은 열리지만 JSON 오류 | `data`가 빌드에 포함되지 않음 | Deploy workflow의 `npm run build` 로그와 `dist/data` 확인 |

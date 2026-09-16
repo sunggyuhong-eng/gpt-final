@@ -10,7 +10,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from collector.pipeline import ROOT, compare, read_json, stable_job_id, update_category_history, write_json
-from collector.normalize import normalize_categories, normalize_subcategories
+from collector.normalize import normalize_categories, normalize_company, normalize_subcategories
 from collector.report import build_methodology
 
 
@@ -33,6 +33,7 @@ def main() -> None:
     for payload in (baseline, current):
         for job in payload["jobs"]:
             job["id"] = stable_job_id(job)
+            job["company"] = normalize_company(job.get("company"))
             raw_categories = job.get("job_subcategories") or job.get("original_categories") or job.get("categories") or []
             subcategories = normalize_subcategories(*raw_categories)
             major_categories = normalize_categories(*(subcategories or raw_categories))

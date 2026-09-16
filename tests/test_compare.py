@@ -75,3 +75,24 @@ def test_category_history_contains_major_and_subcategory_counts(tmp_path, monkey
     assert result["granularity"] == "monthly"
     assert result["periods"][0]["major"]["게임제작"] == 2
     assert result["periods"][0]["sub"]["게임기획"] == 1
+    assert result["periods"][0]["sub_by_major"]["게임제작"]["게임기획"] == 1
+
+
+def test_employment_type_combinations_are_counted_by_each_type():
+    current = [job("1"), job("2")]
+    previous = [job("1")]
+    current[0]["employment_type"] = "정규직, 계약직"
+    current[1]["employment_type"] = "정규직"
+    previous[0]["employment_type"] = "정규직"
+    rows = {row["name"]: row for row in compare(current, previous)["by_employment_type"]}
+    assert rows["정규직"]["current"] == 2
+    assert rows["정규직"]["change"] == 1
+    assert rows["계약직"]["current"] == 1
+
+
+def test_missing_baseline_locations_do_not_create_fake_growth():
+    current = [job("1")]
+    previous = [job("1")]
+    current[0]["location"] = "서울 > 강남구"
+    previous[0]["location"] = "미확인"
+    assert compare(current, previous)["by_location"][0]["previous"] is None

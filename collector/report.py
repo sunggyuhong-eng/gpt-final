@@ -4,7 +4,10 @@ import json
 import os
 import re
 
-import httpx
+try:
+    import httpx
+except ModuleNotFoundError:  # 데이터 재계산만 할 때는 API 클라이언트가 필요 없다.
+    httpx = None
 
 from collector.pipeline import ROOT, read_json, write_json
 
@@ -25,12 +28,14 @@ def generate(month: str) -> dict:
         write_json(ROOT / "data" / "reports" / "latest.json", payload)
         raise RuntimeError("OPENAI_API_KEY가 없습니다. GitHub Actions Secret을 확인하세요.")
     model = os.getenv("OPENAI_MODEL", "gpt-5.5")
+    if httpx is None:
+        raise RuntimeError("OpenAI API 호출에 필요한 httpx가 설치되지 않았습니다.")
     response = httpx.post(
         "https://api.openai.com/v1/responses",
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
         json={
             "model": model,
-            "max_output_tokens": 6000,
+            "max_output_tokens": 7000,
             "instructions": SYSTEM,
             "input": json.dumps(analysis_input, ensure_ascii=False),
         },
@@ -44,6 +49,9 @@ def generate(month: str) -> dict:
         request_id = response.headers.get("x-request-id") or "없음"
         raise RuntimeError(f"OpenAI API 오류 {response.status_code}: {message} (request_id: {request_id})")
     result = response.json()
+    if result.get("status") == "incomplete":
+        reason = (result.get("incomplete_details") or {}).get("reason") or "알 수 없음"
+        raise RuntimeError(f"GPT 리포트 출력이 완료되기 전에 중단되었습니다: {reason}")
     markdown = _response_text(result).strip()
     if not markdown:
         raise RuntimeError("GPT가 비어 있는 리포트를 반환했습니다.")
@@ -73,7 +81,7 @@ def build_methodology(payload: dict, analysis_input: dict | None = None) -> dict
     selected_news = analysis_input.get("news") or []
     dates = sorted(x.get("published_at") for x in selected_news if x.get("published_at"))
     return {
-        "prompt_version": "2026-09-15-v1",
+        "prompt_version": "2026-09-16-market-brief-v2",
         "system_prompt": SYSTEM,
         "evidence": {
             "baseline_period": payload.get("baseline_period"),

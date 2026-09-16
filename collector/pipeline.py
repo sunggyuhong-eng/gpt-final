@@ -9,10 +9,14 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from collector.adapters import GameJobAdapter, GameJobNewsAdapter
 from collector.models import JobPosting, NewsItem
-from collector.normalize import career_bucket
-from collector.normalize import load_yaml
+from collector.normalize import career_bucket, load_yaml, split_multi_value
+
+try:
+    from collector.adapters import GameJobAdapter, GameJobNewsAdapter
+except ModuleNotFoundError:
+    GameJobAdapter = None
+    GameJobNewsAdapter = None
 
 ROOT = Path(__file__).resolve().parents[1]
 SEOUL = ZoneInfo("Asia/Seoul")
@@ -79,6 +83,22 @@ def _career_counts(jobs: list[dict]) -> dict[str, int]:
     return dict(Counter(career_bucket(job.get("career")) for job in jobs).most_common())
 
 
+def _multi_text_counts(jobs: list[dict], key: str) -> dict[str, int]:
+    counter: Counter[str] = Counter()
+    for job in jobs:
+        values = split_multi_value(job.get(key)) or ["미확인"]
+        counter.update(values)
+    return dict(counter.most_common())
+
+
+def _field_delta(current_jobs: list[dict], previous_jobs: list[dict], key: str) -> list[dict]:
+    """이전 월의 필드 완성도가 낮으면 가짜 증감 대신 현재 분포만 제공한다."""
+    known = sum((job.get(key) or "미확인") != "미확인" for job in previous_jobs)
+    if previous_jobs and known / len(previous_jobs) < .5:
+        return _no_baseline(_count(current_jobs, key))
+    return _delta(_count(current_jobs, key), _count(previous_jobs, key))
+
+
 def _fingerprint(job: dict) -> str:
     return "|".join("".join(ch.lower() for ch in (job.get(k) or "") if ch.isalnum()) for k in ("company", "title"))
 
@@ -126,8 +146,8 @@ def compare(current_jobs: list[dict], previous_jobs: list[dict] | None) -> dict:
         "by_company": _delta(_count(current_jobs, "company"), _count(previous_jobs, "company")),
         "by_category": _delta(_count(current_jobs, "categories", True), _count(previous_jobs, "categories", True)),
         "by_career": _delta(_career_counts(current_jobs), _career_counts(previous_jobs)),
-        "by_location": _delta(_count(current_jobs, "location"), _count(previous_jobs, "location")),
-        "by_employment_type": _delta(_count(current_jobs, "employment_type"), _count(previous_jobs, "employment_type")),
+        "by_location": _field_delta(current_jobs, previous_jobs, "location"),
+        "by_employment_type": _delta(_multi_text_counts(current_jobs, "employment_type"), _multi_text_counts(previous_jobs, "employment_type")),
         "company_category": cross_delta(current_jobs, previous_jobs), "reposted": reposted,
     }
 
@@ -154,6 +174,11 @@ def previous_month_file(month: str) -> Path | None:
 
 
 def collect_all(enrich_companies: bool = False, include_report_news: bool = False) -> tuple[list[dict], list[dict], dict]:
+    # 저장 데이터 재계산은 수집용 HTML 파서 없이도 실행될 수 있게 지연 로딩한다.
+    global GameJobAdapter, GameJobNewsAdapter
+    if GameJobAdapter is None or GameJobNewsAdapter is None:
+        from collector.adapters import GameJobAdapter as JobAdapter, GameJobNewsAdapter as NewsAdapter
+        GameJobAdapter, GameJobNewsAdapter = JobAdapter, NewsAdapter
     status = {"started_at": datetime.now(SEOUL).isoformat(), "sources": [], "is_sample": False}
     policy = load_yaml("source_policy.yml").get("sources", {})
     jobs: list[JobPosting] = []
@@ -240,9 +265,24 @@ def update_category_history() -> None:
         if not jobs:
             continue
         has_sample = has_sample or bool(snapshot.get("is_sample"))
+        taxonomy = load_yaml("job_categories.yml").get("major_categories", {})
+        sub_by_major = {}
+        for major, allowed in taxonomy.items():
+            allowed_set = set(allowed)
+            relevant = [job for job in jobs if major in (job.get("job_major_categories") or job.get("categories") or [])]
+            sub_by_major[major] = _count([
+                {"values": [value for value in (job.get("job_subcategories") or job.get("original_categories") or []) if value in allowed_set]}
+                for job in relevant
+            ], "values", True)
         periods.append({
             "period": snapshot.get("period") or path.stem,
             "major": _count(jobs, "job_major_categories", True) if any("job_major_categories" in job for job in jobs) else _count(jobs, "categories", True),
             "sub": _count(jobs, "job_subcategories", True) if any("job_subcategories" in job for job in jobs) else _count(jobs, "original_categories", True),
+            "sub_by_major": sub_by_major,
         })
-    write_json(ROOT / "data" / "category-history.json", {"is_sample": has_sample, "granularity": "monthly", "periods": periods})
+    write_json(ROOT / "data" / "category-history.json", {
+        "is_sample": has_sample,
+        "granularity": "monthly",
+        "taxonomy": load_yaml("job_categories.yml").get("major_categories", {}),
+        "periods": periods,
+    })
