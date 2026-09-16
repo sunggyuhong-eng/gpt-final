@@ -10,7 +10,7 @@
 
 1. 매일 오전 9시(한국 시간) 공개 채용공고를 수집해 `data/daily/YYYY-MM-DD.json`에 보존합니다.
 2. 매월 1일 오전 9시에는 `data/snapshots/YYYY-MM.json`을 만들고 전월과 비교합니다.
-3. 사용자가 `Generate GPT Report - OpenAI`를 수동 실행한 경우에만 전체 공고·전체 뉴스 입력으로 `reports/YYYY-MM.md`와 `data/reports/YYYY-MM.json`을 생성합니다.
+3. 사용자가 `Generate GPT Report - OpenAI`를 수동 실행한 경우에만 전체 공고·전체 뉴스 입력으로 `reports/YYYY-MM.md`와 `data/reports/YYYY-MM.json`을 생성하고 GitHub Pages까지 다시 배포합니다.
 4. React는 저장소의 정적 JSON만 읽습니다. 외부 사이트를 브라우저에서 직접 호출하지 않습니다.
 5. 수집 성공 여부와 오류는 `data/collection-status.json`에 기록합니다.
 6. 직무별 화면은 `data/category-history.json`을 사용해 선택한 대분류 또는 소분류를 공식 월간 스냅샷별로 비교합니다.
@@ -90,7 +90,7 @@ API 키는 공개 웹페이지에 입력하지 않습니다. 브라우저 입력
 
 키를 코드, JSON, README 또는 채팅에 입력하지 마세요. 공개된 키는 즉시 폐기하고 새 키로 교체해야 합니다. API 사용료와 사용 가능 모델은 OpenAI 계정 설정에 따라 달라집니다. 키가 없거나 잘못된 경우 리포트 Actions는 빨간불로 실패합니다.
 
-AI 리포트는 자동 수집에서 생성하지 않습니다. 현재 저장된 스냅샷으로 리포트를 만들고 싶을 때만 `Actions` → `Generate GPT Report - OpenAI` → `Run workflow`를 실행하세요. 별도 체크박스는 없으며, 이 수동 워크플로를 실행할 때만 GPT API 토큰을 사용합니다. 게임잡 데이터는 다시 수집하지 않습니다.
+AI 리포트는 자동 수집에서 생성하지 않습니다. 현재 저장된 스냅샷으로 리포트를 만들고 싶을 때만 `Actions` → `Generate GPT Report - OpenAI` → `Run workflow`를 실행하세요. 별도 체크박스는 없으며, 이 수동 워크플로를 실행할 때만 GPT API 토큰을 사용합니다. 게임잡 데이터는 다시 수집하지 않으며, 완료 시 생성 결과를 커밋하고 GitHub Pages에 직접 배포합니다.
 
 ### 수집 출처 승인
 

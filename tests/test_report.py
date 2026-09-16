@@ -4,7 +4,7 @@ import httpx
 import pytest
 
 import collector.report as report_module
-from collector.report import _compact_payload, _response_text, _select_relevant_news
+from collector.report import _compact_payload, _hydrate_saved_news, _response_text, _select_relevant_news
 
 
 def test_report_payload_removes_large_id_lists():
@@ -32,6 +32,16 @@ def test_all_news_are_preserved_after_prioritizing():
     stats = {"by_company": []}
     news = [{"title": f"뉴스 {i}", "published_at": "2026-09-15", "issue_type": "기타"} for i in range(135)]
     assert len(_select_relevant_news(news, stats)) == 135
+
+
+def test_empty_report_news_are_restored_from_saved_month(tmp_path, monkeypatch):
+    monkeypatch.setattr(report_module, "ROOT", tmp_path)
+    news_path = tmp_path / "data" / "news" / "2026-09.json"
+    news_path.parent.mkdir(parents=True)
+    news_path.write_text(json.dumps({"period": "2026-09", "items": [{"title": "저장된 뉴스"}]}), encoding="utf-8")
+    payload = {"period": "2026-09", "news": []}
+    assert _hydrate_saved_news(payload, "2026-09") == [{"title": "저장된 뉴스"}]
+    assert payload["news"][0]["title"] == "저장된 뉴스"
 
 
 def test_missing_api_key_fails_instead_of_green_success(tmp_path, monkeypatch):

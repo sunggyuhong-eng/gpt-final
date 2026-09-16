@@ -19,6 +19,7 @@ def generate(month: str) -> dict:
     payload = read_json(report_path)
     if not payload:
         raise FileNotFoundError(f"분석 데이터 없음: {report_path}")
+    _hydrate_saved_news(payload, month)
     analysis_input = _compact_payload(payload)
     payload["methodology"] = build_methodology(payload, analysis_input)
     api_key = os.getenv("OPENAI_API_KEY")
@@ -62,6 +63,16 @@ def generate(month: str) -> dict:
     reports.mkdir(exist_ok=True)
     (reports / f"{month}.md").write_text(markdown, encoding="utf-8")
     return payload
+
+
+def _hydrate_saved_news(payload: dict, month: str) -> list[dict]:
+    """월간 비교 재적용 과정에서 비어 버린 뉴스는 저장된 뉴스 스냅샷으로 복구한다."""
+    if payload.get("news"):
+        return payload["news"]
+    saved = read_json(ROOT / "data" / "news" / f"{month}.json", {})
+    items = saved.get("items") if isinstance(saved, dict) else None
+    payload["news"] = items if isinstance(items, list) else []
+    return payload["news"]
 
 
 def _response_text(result: dict) -> str:

@@ -79,6 +79,11 @@ def main() -> None:
     write_json(ROOT / "data" / "history-summary.json", history)
     update_category_history()
 
+    saved_news = read_json(ROOT / "data" / "news" / f"{current_period}.json", {})
+    report_news = saved_news.get("items", []) if isinstance(saved_news, dict) else []
+    if not isinstance(report_news, list):
+        report_news = []
+
     report = {
         "period": current_period,
         "baseline_period": baseline_period,
@@ -93,7 +98,7 @@ def main() -> None:
             {key: job.get(key) for key in ("id", "company", "title", "url", "categories", "job_subcategories", "career", "location", "employment_type")}
             for job in current["jobs"]
         ],
-        "news": [],
+        "news": report_news,
     }
     report["methodology"] = build_methodology(report)
     write_json(ROOT / "data" / "reports" / f"{current_period}.json", report)
