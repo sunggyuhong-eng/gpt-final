@@ -1,13 +1,14 @@
 {
-  "started_at": "2026-09-20T13:31:06.956523+09:00",
+  "started_at": "2026-09-15T23:15:09.661188-04:00",
+  "finished_at": "2026-09-15T23:15:09.661188-04:00",
+  "success": true,
+  "is_sample": false,
+  "message": "예시 비교 기준: 2026-08 → 2026-09",
   "sources": [
     {
-      "name": "게임잡",
+      "name": "사용자 제공 월간 JSON",
       "status": "success",
-      "count": 1539
+      "count": 1554
     }
-  ],
-  "is_sample": false,
-  "finished_at": "2026-09-20T13:32:44.171634+09:00",
-  "success": true
+  ]
 }
