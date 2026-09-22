@@ -30,5 +30,7 @@ export type ReportAnalysis = {
   news_signals:{company:string;headline:string;comment:string;evidence_level:'직접 근거'|'관련 가능성'|'근거 부족';news_urls:string[]}[];
   watchlist:string[]; limitations:string[];
 }
-export type Report = { period:string; baseline_period?:string; current_period?:string; comparison_label?:string; is_sample:boolean; status:string; statistics:any; analysis?:ReportAnalysis|null; markdown:string|null; error?:string; methodology?:ReportMethodology; news?:NewsItem[]; generated_at?:string|null; report_schema_version?:number; pdf_path?:string|null }
+export type Report = { period:string; baseline_period?:string; current_period?:string; comparison_label?:string; is_sample:boolean; status:string; statistics:any; analysis?:ReportAnalysis|null; markdown:string|null; error?:string; methodology?:ReportMethodology; news?:NewsItem[];job_examples?:Job[]; generated_at?:string|null; report_schema_version?:number; pdf_path?:string|null;model?:string|null }
+export type ReportArchiveEntry = { id:string;period:string;generated_at:string;model?:string|null;json_path:string;markdown_path?:string|null;pdf_path?:string|null }
+export type ReportArchive = { schema_version?:number;reports:ReportArchiveEntry[] }
 export type Status = { is_sample:boolean; success:boolean; finished_at:string; message?:string; sources:{name:string;status:string;count:number;error?:string}[] }

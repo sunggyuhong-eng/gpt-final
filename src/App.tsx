@@ -6,12 +6,12 @@ import {
   MapPin, Search, Sparkles, Newspaper, AlertCircle, ShieldCheck, Download, Database,
   Eye, EyeOff, LockKeyhole, LogOut,
 } from 'lucide-react'
-import { loadAll } from './data'
+import { loadAll, loadReport } from './data'
 import { compareSnapshots, companyGroupName, dataQuality } from './analysis'
 import { pageWindow } from './pagination'
-import type { CategoryHistory, CompanyGroups, History, Job, Report, Snapshot, Status } from './types'
+import type { CategoryHistory, CompanyGroups, History, Job, Report, ReportArchive, ReportArchiveEntry, Snapshot, Status } from './types'
 
-type Data = { snapshot: Snapshot; history: History; categoryHistory: CategoryHistory; report: Report; status: Status; companyGroups:CompanyGroups; snapshots:Record<string,Snapshot> }
+type Data = { snapshot: Snapshot; history: History; categoryHistory: CategoryHistory; report: Report; reportArchive:ReportArchive; status: Status; companyGroups:CompanyGroups; snapshots:Record<string,Snapshot> }
 const nav = [
   ['/', '대시보드', LayoutDashboard], ['/categories', '직무별', BarChart3], ['/companies', '회사별', Building2],
   ['/reports', '월간 리포트', FileText], ['/quality', '데이터 진단', ShieldCheck],
@@ -292,21 +292,47 @@ function Companies({ data }: { data: Data }) {
 }
 
 function Reports({ data }: { data: Data }) {
-  const report = data.report
+  const latestReport = data.report
+  const [searchParams, setSearchParams] = useSearchParams()
+  const archiveId = searchParams.get('archive') || ''
+  const latestEntry:ReportArchiveEntry | null = latestReport.status === 'complete' && latestReport.generated_at ? {
+    id:`latest-${latestReport.generated_at}`, period:latestReport.period, generated_at:latestReport.generated_at,
+    model:latestReport.model, json_path:'data/reports/latest.json',
+    markdown_path:latestReport.markdown ? `reports/${latestReport.period}.md` : null, pdf_path:latestReport.pdf_path,
+  } : null
+  const archiveEntries = [...data.reportArchive.reports]
+  if (latestEntry && !archiveEntries.some(entry => entry.generated_at === latestEntry.generated_at)) archiveEntries.unshift(latestEntry)
+  const selectedEntry = archiveEntries.find(entry => entry.id === archiveId)
+  const [archivedReport, setArchivedReport] = useState<Report | null>(null)
+  const [archiveError, setArchiveError] = useState('')
+  useEffect(() => {
+    let active = true
+    if (!selectedEntry) { setArchivedReport(null); setArchiveError(''); return () => { active = false } }
+    setArchivedReport(null); setArchiveError('')
+    loadReport(selectedEntry.json_path).then(value => { if (active) setArchivedReport(value) }).catch(() => { if (active) { setArchivedReport(null); setArchiveError('저장된 리포트를 불러오지 못했습니다.') } })
+    return () => { active = false }
+  }, [selectedEntry?.id])
+  const report = archivedReport || latestReport
+  const viewingArchive = Boolean(selectedEntry && archivedReport)
   const periods = Object.keys(data.snapshots).sort()
   const [baseline, setBaseline] = useState(report.baseline_period || periods.at(-2) || periods[0] || '')
   const [current, setCurrent] = useState(report.current_period || periods.at(-1) || data.snapshot.period.slice(0, 7))
-  const officialPair = baseline === report.baseline_period && current === (report.current_period || report.period)
-  const stats = compareSnapshots(data.snapshots[current] || data.snapshot, data.snapshots[baseline], data.companyGroups)
+  useEffect(() => { if (viewingArchive) { setBaseline(report.baseline_period || periods.at(-2) || ''); setCurrent(report.current_period || report.period) } }, [viewingArchive, report.generated_at])
+  const officialPair = viewingArchive || (baseline === report.baseline_period && current === (report.current_period || report.period))
+  const stats = viewingArchive ? report.statistics as ReturnType<typeof compareSnapshots> : compareSnapshots(data.snapshots[current] || data.snapshot, data.snapshots[baseline], data.companyGroups)
   const analysis = officialPair ? report.analysis : null
   const hasLegacyReport = officialPair && !analysis && report.status === 'complete' && Boolean(report.markdown)
   const hasReportContent = Boolean(analysis || hasLegacyReport)
   const jobMoves = movementRows(stats.by_category || [])
   const companyMoves = movementRows(stats.by_company || [])
   const careerMoves = movementRows(stats.by_career || [])
+  const selectArchive = (entry:ReportArchiveEntry | null) => { setSearchParams(entry ? { archive:entry.id } : {}); window.scrollTo({ top:0, behavior:'smooth' }) }
+  const markdownPath = selectedEntry?.markdown_path || (report.markdown ? `reports/${report.period}.md` : null)
   return <section><PageTitle eyebrow="MONTHLY INSIGHT" title="월간 리포트" description={`${current} 채용시장 분석을 확인하세요.`} />
-    <ComparisonControl periods={periods} baseline={baseline} current={current} setBaseline={setBaseline} setCurrent={setCurrent} />
-    <div className="report-hero"><div><FileText size={28} /><span>{!officialPair ? '선택 기간 통계 비교' : hasReportContent ? '분석 완료' : report.status === 'complete' ? '생성 결과 확인 필요' : '통계 공개 · 해설 준비 중'}</span><h2>{current.replace('-', '년 ')}월<br />게임업계 채용 리포트</h2><p>{analysis?.outlook || `${baseline} → ${current} 채용 변화를 비교합니다.`}</p>{officialPair && report.generated_at && <small className="report-generated">GPT 생성 {formatDateTime(report.generated_at)}</small>}</div><div className="report-downloads">{officialPair && report.pdf_path && <a className="primary-button" href={report.pdf_path} download><Download size={17} /> PDF 요약본</a>}{officialPair && report.markdown && <a className="outline-button light" href={`reports/${report.period}.md`} download>Markdown <ArrowUpRight size={16} /></a>}</div></div>
+    <ReportArchivePicker entries={archiveEntries} selected={selectedEntry?.id || ''} onSelect={selectArchive} />
+    {archiveError && <div className="status-strip warning">{archiveError}</div>}
+    {viewingArchive ? <div className="archive-viewing"><div><FileText size={18} /><span><b>{report.period.replace('-', '년 ')}월 저장 리포트</b><small>{formatDateTime(report.generated_at || '')} 생성본을 보고 있습니다.</small></span></div><button onClick={() => selectArchive(null)}>최신 리포트로 돌아가기</button></div> : <ComparisonControl periods={periods} baseline={baseline} current={current} setBaseline={setBaseline} setCurrent={setCurrent} />}
+    <div className="report-hero"><div><FileText size={28} /><span>{viewingArchive ? '저장된 리포트' : !officialPair ? '선택 기간 통계 비교' : hasReportContent ? '분석 완료' : report.status === 'complete' ? '생성 결과 확인 필요' : '통계 공개 · 해설 준비 중'}</span><h2>{current.replace('-', '년 ')}월<br />게임업계 채용 리포트</h2><p>{analysis?.outlook || `${baseline} → ${current} 채용 변화를 비교합니다.`}</p>{officialPair && report.generated_at && <small className="report-generated">GPT 생성 {formatDateTime(report.generated_at)}</small>}</div><div className="report-downloads">{officialPair && report.pdf_path && <a className="primary-button" href={report.pdf_path} download><Download size={17} /> PDF 요약본</a>}{officialPair && markdownPath && <a className="outline-button light" href={markdownPath} download>Markdown <ArrowUpRight size={16} /></a>}</div></div>
     {report.is_sample && <div className="status-strip warning">화면 검증용 예시 리포트입니다.</div>}
     {!analysis && officialPair && <ReportGenerationProgress report={report} />}
     {!officialPair && <div className="data-warning"><AlertCircle size={20} /><div><b>선택한 기간은 통계 비교 모드입니다.</b><p>GPT 시장 해설과 PDF 요약본은 최신 공식 비교 기간인 {report.comparison_label || `${report.baseline_period} → ${report.current_period}`}에만 제공됩니다.</p></div></div>}
@@ -314,13 +340,23 @@ function Reports({ data }: { data: Data }) {
     {hasLegacyReport && <div className="data-warning"><AlertCircle size={20} /><div><b>이전 형식의 해설이 저장되어 있습니다.</b><p>새로운 변화 중심 리포트를 보려면 Generate GPT Report - OpenAI를 한 번 실행해 주세요.</p></div></div>}
     <div className="section-heading compact"><div><span>MOMENTUM CHARTS</span><h2>직무·회사·경력별 증감</h2></div><p>막대 길이는 전월 대비 변화량을 나타냅니다.</p></div>
     <div className="report-chart-grid"><Panel eyebrow="JOB MOMENTUM" title="직무 강세·약세"><DeltaBars rows={jobMoves.slice(0, 10)} /></Panel><Panel eyebrow="COMPANY MOVERS" title="회사별 주요 변동"><DeltaBars rows={companyMoves.slice(0, 10)} /></Panel><Panel eyebrow="CAREER MIX" title="경력별 변화"><DeltaBars rows={careerMoves.slice(0, 8)} /></Panel><Panel eyebrow="EMPLOYMENT MIX" title="고용형태 변화"><DeltaBars rows={movementRows(stats.by_employment_type || []).slice(0, 8)} /></Panel></div>
-    {analysis ? <StructuredReport analysis={analysis} data={data} /> : null}
+    {analysis ? <StructuredReport analysis={analysis} data={data} report={report} /> : null}
     {hasLegacyReport && report.markdown ? <Panel className="report-panel legacy-report" eyebrow="GENERATED REPORT" title="생성된 시장 해설"><article className="report"><ReportMarkdown markdown={report.markdown} /></article></Panel> : null}
     {officialPair && <ReportMethod report={report} />}
   </section>
 }
 
 type WorkflowProgress = { percent:number;label:string;detail:string;url?:string;state:'running'|'waiting'|'failed'|'done' }
+
+function ReportArchivePicker({ entries, selected, onSelect }: {entries:ReportArchiveEntry[];selected:string;onSelect:(entry:ReportArchiveEntry|null)=>void}) {
+  if (!entries.length) return null
+  const monthVersions = new Map<string, number>()
+  return <section className="report-archive"><header><div><span>REPORT ARCHIVE</span><h2>저장된 월간 리포트</h2><p>같은 달에 다시 생성한 리포트와 PDF도 생성 시각별로 보존됩니다.</p></div><b>{entries.length}개</b></header><div className="archive-list">{entries.map(entry => {
+    const version = (monthVersions.get(entry.period) || 0) + 1
+    monthVersions.set(entry.period, version)
+    return <article className={selected === entry.id ? 'active' : ''} key={entry.id}><div><span>{entry.period.replace('-', '년 ')}월</span>{version > 1 && <em>이전 생성본</em>}</div><h3>{formatDateTime(entry.generated_at)}</h3><small>{entry.model || '생성 모델 정보 없음'}</small><footer><button onClick={() => onSelect(entry)}>리포트 보기</button>{entry.pdf_path && <a href={entry.pdf_path} download><Download size={13} /> PDF</a>}</footer></article>
+  })}</div></section>
+}
 
 function ReportGenerationProgress({ report }: { report:Report }) {
   const [progress, setProgress] = useState<WorkflowProgress>({ percent:10, label:'최신 실행 확인 중', detail:'GitHub Actions의 리포트 생성 상태를 확인하고 있습니다.', state:'waiting' })
@@ -446,10 +482,10 @@ function QualityMetric({ label, value, unit, ok }: {label:string;value:number;un
   return <article className={`quality-metric${ok ? ' ok' : ''}`}><span>{label}</span><strong>{value.toLocaleString()}<small>{unit}</small></strong><b>{ok ? '정상' : '확인 필요'}</b></article>
 }
 
-function StructuredReport({ analysis, data }: { analysis: NonNullable<Report['analysis']>; data:Data }) {
-  const jobs = new Map(data.snapshot.jobs.map(job => [job.id, job]))
-  const news = new Map((data.report.news || []).map(item => [item.url, item]))
-  const companyStats = new Map<string, {current:number;previous:number|null;change:number|null}>((data.report.statistics?.by_company || []).map((row:{name:string;current:number;previous:number|null;change:number|null}) => [row.name, row]))
+function StructuredReport({ analysis, data, report }: { analysis: NonNullable<Report['analysis']>; data:Data;report:Report }) {
+  const jobs = new Map((report.job_examples || data.snapshot.jobs).map(job => [job.id, job]))
+  const news = new Map((report.news || []).map(item => [item.url, item]))
+  const companyStats = new Map<string, {current:number;previous:number|null;change:number|null}>((report.statistics?.by_company || []).map((row:{name:string;current:number;previous:number|null;change:number|null}) => [row.name, row]))
   const evidenceCounts = ['직접 근거', '관련 가능성', '근거 부족'].map(level => ({ level, count: analysis.news_signals.filter(item => item.evidence_level === level).length }))
   return <>
     <div className="section-heading compact"><div><span>JOB SIGNAL</span><h2>직무별 애널리스트 해설</h2></div></div>
