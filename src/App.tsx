@@ -121,6 +121,8 @@ function MobileNav() {
 
 function Dashboard({ data }: { data: Data }) {
   const jobs = data.snapshot.jobs
+  const companyDetails = new Map<string, Job>()
+  jobs.forEach(job => { if (!companyDetails.has(job.company)) companyDetails.set(job.company, job) })
   const companies = new Set(jobs.map(j => j.company)).size
   const stats = data.report.statistics
   const categoryMoves = movementRows(stats.by_category || [])
@@ -142,14 +144,14 @@ function Dashboard({ data }: { data: Data }) {
 
     <div className="dashboard-kpis"><Kpi icon={BriefcaseBusiness} label="현재 오픈 공고" value={`${currentTotal.toLocaleString()}건`} sub={`전월 ${previousTotal.toLocaleString()}건`} primary /><Kpi icon={Building2} label="채용 중인 기업" value={`${companies.toLocaleString()}개`} sub="회사명 중복 제거" /><Kpi icon={Sparkles} label="신규 확인 공고" value={`${stats.new_count ?? '-'}건`} sub={data.report.comparison_label || currentPeriod} /><Kpi icon={Clock3} label="종료 확인 공고" value={`${stats.closed_count ?? '-'}건`} sub={`${baselinePeriod} 대비`} /></div>
 
-    <section className="company-report-grid"><article className="company-ranking"><header><div><span>TOP HIRING COMPANIES</span><h2>채용 많은 기업 순위</h2></div><NavLink to="/companies">회사별 상세 <ChevronRight size={16} /></NavLink></header><div className="company-ranking-head"><span>순위·기업</span><span>전월</span><span>현재</span><span>변화</span></div>{companyRanks.map((row, index) => <div className="company-ranking-row" key={row.name}><div><em>{index + 1}</em><b>{row.name}</b></div><span>{row.previous == null ? '-' : `${row.previous.toLocaleString()}건`}</span><strong>{row.current.toLocaleString()}건</strong><ChangeBadge value={row.change} /></div>)}</article><div className="company-movement"><article><header><span>INCREASE</span><h2>채용 증가 기업</h2></header><CompanyMovement rows={gainers} /></article><article><header><span>DECREASE</span><h2>채용 감소 기업</h2></header><CompanyMovement rows={decliners} /></article></div></section>
+    <section className="company-report-grid"><article className="company-ranking"><header><div><span>TOP HIRING COMPANIES</span><h2>채용 많은 기업 순위</h2></div><NavLink to="/companies">회사별 상세 <ChevronRight size={16} /></NavLink></header><div className="company-ranking-head"><span>순위·기업</span><span>전월</span><span>현재</span><span>변화</span></div>{companyRanks.map((row, index) => { const detail = companyDetails.get(row.name); return <div className="company-ranking-row" key={row.name}><div><em>{index + 1}</em><Logo name={row.name} url={detail?.logo_url || null} /><span className="company-identity"><b>{row.name}</b><small>{detail?.representative_game || '대표게임 정보 없음'}</small></span></div><span>{row.previous == null ? '-' : `${row.previous.toLocaleString()}건`}</span><strong>{row.current.toLocaleString()}건</strong><ChangeBadge value={row.change} /></div> })}</article><div className="company-movement"><article><header><span>INCREASE</span><h2>채용 증가 기업</h2></header><CompanyMovement rows={gainers} details={companyDetails} /></article><article><header><span>DECREASE</span><h2>채용 감소 기업</h2></header><CompanyMovement rows={decliners} details={companyDetails} /></article></div></section>
 
     <div className="section-heading compact report-section-title"><div><span>MARKET MOVEMENT</span><h2>전체 추이와 직무별 변화</h2></div><NavLink to="/categories">직무별 상세 <ChevronRight size={17} /></NavLink></div><div className="market-report-grid"><Panel className="trend-panel" eyebrow="HIRING TREND" title="월별 오픈 공고 추이"><Trend history={data.history} /></Panel><Panel eyebrow="JOB MOMENTUM" title="직무별 전월 대비 변화"><DeltaBars rows={categoryMoves.slice(0, 10)} /></Panel></div>
   </section>
 }
 
-function CompanyMovement({ rows }: { rows:{name:string;current:number;previous:number|null;change:number|null}[] }) {
-  return <div className="company-movement-list">{rows.map((row, index) => <div key={row.name}><em>{index + 1}</em><span><b>{row.name}</b><small>{row.previous == null ? '이전 기준 없음' : `${row.previous.toLocaleString()} → ${row.current.toLocaleString()}건`}</small></span><ChangeBadge value={row.change} /></div>)}</div>
+function CompanyMovement({ rows, details }: { rows:{name:string;current:number;previous:number|null;change:number|null}[];details:Map<string,Job> }) {
+  return <div className="company-movement-list">{rows.map((row, index) => { const detail = details.get(row.name); return <div key={row.name}><em>{index + 1}</em><Logo name={row.name} url={detail?.logo_url || null} /><span><b>{row.name}</b><small>{detail?.representative_game || '대표게임 정보 없음'}</small></span><ChangeBadge value={row.change} /></div> })}</div>
 }
 
 function Jobs({ data }: { data: Data }) {
@@ -306,6 +308,7 @@ function Reports({ data }: { data: Data }) {
     <ComparisonControl periods={periods} baseline={baseline} current={current} setBaseline={setBaseline} setCurrent={setCurrent} />
     <div className="report-hero"><div><FileText size={28} /><span>{!officialPair ? '선택 기간 통계 비교' : hasReportContent ? '분석 완료' : report.status === 'complete' ? '생성 결과 확인 필요' : '통계 공개 · 해설 준비 중'}</span><h2>{current.replace('-', '년 ')}월<br />게임업계 채용 리포트</h2><p>{analysis?.outlook || `${baseline} → ${current} 채용 변화를 비교합니다.`}</p>{officialPair && report.generated_at && <small className="report-generated">GPT 생성 {formatDateTime(report.generated_at)}</small>}</div><div className="report-downloads">{officialPair && report.pdf_path && <a className="primary-button" href={report.pdf_path} download><Download size={17} /> PDF 요약본</a>}{officialPair && report.markdown && <a className="outline-button light" href={`reports/${report.period}.md`} download>Markdown <ArrowUpRight size={16} /></a>}</div></div>
     {report.is_sample && <div className="status-strip warning">화면 검증용 예시 리포트입니다.</div>}
+    {!analysis && officialPair && <ReportGenerationProgress report={report} />}
     {!officialPair && <div className="data-warning"><AlertCircle size={20} /><div><b>선택한 기간은 통계 비교 모드입니다.</b><p>GPT 시장 해설과 PDF 요약본은 최신 공식 비교 기간인 {report.comparison_label || `${report.baseline_period} → ${report.current_period}`}에만 제공됩니다.</p></div></div>}
     <MarketChangeStory stats={stats} analysis={analysis} />
     {hasLegacyReport && <div className="data-warning"><AlertCircle size={20} /><div><b>이전 형식의 해설이 저장되어 있습니다.</b><p>새로운 변화 중심 리포트를 보려면 Generate GPT Report - OpenAI를 한 번 실행해 주세요.</p></div></div>}
@@ -315,6 +318,72 @@ function Reports({ data }: { data: Data }) {
     {hasLegacyReport && report.markdown ? <Panel className="report-panel legacy-report" eyebrow="GENERATED REPORT" title="생성된 시장 해설"><article className="report"><ReportMarkdown markdown={report.markdown} /></article></Panel> : null}
     {officialPair && <ReportMethod report={report} />}
   </section>
+}
+
+type WorkflowProgress = { percent:number;label:string;detail:string;url?:string;state:'running'|'waiting'|'failed'|'done' }
+
+function ReportGenerationProgress({ report }: { report:Report }) {
+  const [progress, setProgress] = useState<WorkflowProgress>({ percent:10, label:'최신 실행 확인 중', detail:'GitHub Actions의 리포트 생성 상태를 확인하고 있습니다.', state:'waiting' })
+  useEffect(() => {
+    let cancelled = false
+    let timer:number | undefined
+    const reportUrl = new URL('data/reports/latest.json', window.location.href.split('#')[0])
+    const checkPublishedReport = async () => {
+      reportUrl.searchParams.set('v', Date.now().toString())
+      const response = await fetch(reportUrl, { cache:'no-store' })
+      if (!response.ok) return false
+      const latest = await response.json() as Report
+      if (latest.status === 'complete' && latest.analysis && latest.generated_at !== report.generated_at) {
+        if (!cancelled) window.location.reload()
+        return true
+      }
+      return false
+    }
+    const waitForPublication = async () => {
+      if (await checkPublishedReport() || cancelled) return
+      timer = window.setTimeout(waitForPublication, 20_000)
+    }
+    const check = async () => {
+      try {
+        const response = await fetch('https://api.github.com/repos/sunggyuhong-eng/gpt-final/actions/workflows/openai-gpt-report.yml/runs?per_page=1', { headers:{ Accept:'application/vnd.github+json' } })
+        if (!response.ok) throw new Error(`GitHub 상태 ${response.status}`)
+        const payload = await response.json() as {workflow_runs?:Array<{id:number;status:string;conclusion:string|null;html_url:string;jobs_url:string}>}
+        const run = payload.workflow_runs?.[0]
+        if (!run) throw new Error('최근 실행 없음')
+        if (run.status === 'completed') {
+          if (run.conclusion === 'success') {
+            const published = await checkPublishedReport()
+            if (!published && !cancelled) {
+              setProgress({ percent:95, label:'GPT 분석 완료 · 배포 반영 확인 중', detail:'리포트는 생성됐지만 Pages에서 최신 파일을 확인하는 중입니다.', url:run.html_url, state:'waiting' })
+              timer = window.setTimeout(waitForPublication, 20_000)
+            }
+          } else if (!cancelled) setProgress({ percent:100, label:'리포트 생성 실패', detail:'GitHub Actions 실행 내역에서 실패 단계를 확인해 주세요.', url:run.html_url, state:'failed' })
+          return
+        }
+        let percent = run.status === 'queued' ? 10 : 45
+        let detail = run.status === 'queued' ? '실행 순서를 기다리고 있습니다.' : '공고·뉴스 근거를 분석해 리포트를 작성하고 있습니다.'
+        try {
+          const jobsResponse = await fetch(run.jobs_url, { headers:{ Accept:'application/vnd.github+json' } })
+          if (jobsResponse.ok) {
+            const jobsPayload = await jobsResponse.json() as {jobs?:Array<{steps?:Array<{status:string;conclusion:string|null}>}>}
+            const steps = (jobsPayload.jobs || []).flatMap(job => job.steps || [])
+            const completed = steps.filter(step => step.status === 'completed').length
+            if (steps.length) percent = Math.min(90, Math.max(15, Math.round(completed / steps.length * 90)))
+            detail = `${steps.length}개 단계 중 ${completed}개를 완료했습니다.`
+          }
+        } catch { /* 실행 상태만으로 표시 */ }
+        if (!cancelled) {
+          setProgress({ percent, label:'GPT 리포트 생성 중', detail, url:run.html_url, state:'running' })
+          timer = window.setTimeout(check, 20_000)
+        }
+      } catch {
+        if (!cancelled) setProgress({ percent:0, label:'진행 상태를 불러오지 못했습니다', detail:'리포트 화면의 통계는 정상이며 Actions에서 실행 상태를 직접 확인할 수 있습니다.', state:'failed' })
+      }
+    }
+    check()
+    return () => { cancelled = true; if (timer) window.clearTimeout(timer) }
+  }, [report.generated_at])
+  return <section className={`report-progress ${progress.state}`}><div className="progress-copy"><div><Sparkles size={18} /><span>{progress.label}</span></div><b>{progress.percent}%</b></div><div className="progress-track"><i style={{ width:`${progress.percent}%` }} /></div><footer><span>{progress.detail}</span>{progress.url && <a href={progress.url} target="_blank" rel="noreferrer">Actions에서 보기 <ArrowUpRight size={13} /></a>}</footer></section>
 }
 
 function MarketChangeStory({ stats, analysis }: { stats:ReturnType<typeof compareSnapshots>;analysis:Report['analysis'] }) {
