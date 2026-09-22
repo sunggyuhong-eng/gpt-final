@@ -24,6 +24,7 @@ export type ReportMethodology = {
 }
 export type ReportAnalysis = {
   outlook:string; market_comment:string; highlights:string[];
+  change_story?:{movement:string;drivers:string;background:string;implication:string};
   job_insights:{name:string;direction:'강세'|'약세'|'보합';comment:string}[];
   company_insights:{name:string;direction:'증가'|'감소'|'보합';comment:string;evidence_level:'직접 근거'|'관련 가능성'|'근거 부족';job_ids:string[];news_urls:string[]}[];
   news_signals:{company:string;headline:string;comment:string;evidence_level:'직접 근거'|'관련 가능성'|'근거 부족';news_urls:string[]}[];

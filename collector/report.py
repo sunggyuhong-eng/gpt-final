@@ -18,6 +18,17 @@ REPORT_SCHEMA = {
     "type": "object",
     "properties": {
         "outlook": {"type": "string"},
+        "change_story": {
+            "type": "object",
+            "properties": {
+                "movement": {"type": "string"},
+                "drivers": {"type": "string"},
+                "background": {"type": "string"},
+                "implication": {"type": "string"},
+            },
+            "required": ["movement", "drivers", "background", "implication"],
+            "additionalProperties": False,
+        },
         "market_comment": {"type": "string"},
         "highlights": {"type": "array", "items": {"type": "string"}},
         "job_insights": {
@@ -67,7 +78,7 @@ REPORT_SCHEMA = {
         "watchlist": {"type": "array", "items": {"type": "string"}},
         "limitations": {"type": "array", "items": {"type": "string"}},
     },
-    "required": ["outlook", "market_comment", "highlights", "job_insights", "company_insights", "news_signals", "watchlist", "limitations"],
+    "required": ["outlook", "change_story", "market_comment", "highlights", "job_insights", "company_insights", "news_signals", "watchlist", "limitations"],
     "additionalProperties": False,
 }
 
@@ -142,7 +153,7 @@ def generate(month: str) -> dict:
         "status": "complete",
         "provider": "openai",
         "model": model,
-        "report_schema_version": 3,
+        "report_schema_version": 4,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "analysis": analysis,
         "markdown": markdown,
@@ -172,6 +183,12 @@ def _sanitize_analysis(analysis: dict, payload: dict) -> dict:
 
     sanitized = {
         "outlook": clean(analysis.get("outlook")),
+        "change_story": {
+            "movement": clean((analysis.get("change_story") or {}).get("movement")),
+            "drivers": clean((analysis.get("change_story") or {}).get("drivers")),
+            "background": clean((analysis.get("change_story") or {}).get("background")),
+            "implication": clean((analysis.get("change_story") or {}).get("implication")),
+        },
         "market_comment": clean(analysis.get("market_comment")),
         "highlights": [clean(x) for x in (analysis.get("highlights") or [])[:4] if clean(x)],
         "job_insights": [],
@@ -220,7 +237,15 @@ def _analysis_markdown(analysis: dict, payload: dict) -> str:
     def esc(value: object) -> str:
         return str(value or "").replace("[", "\\[").replace("]", "\\]")
 
-    lines = [f"# {esc(analysis.get('outlook'))}", "", esc(analysis.get("market_comment")), "", "## 핵심 포인트"]
+    story = analysis.get("change_story") or {}
+    lines = [
+        f"# {esc(analysis.get('outlook'))}", "", "## 변화가 만들어진 과정",
+        f"- **변화 구성** — {esc(story.get('movement'))}",
+        f"- **변화 주도** — {esc(story.get('drivers'))}",
+        f"- **확인된 배경** — {esc(story.get('background'))}",
+        f"- **해석과 다음 신호** — {esc(story.get('implication'))}",
+        "", esc(analysis.get("market_comment")), "", "## 핵심 포인트",
+    ]
     lines += [f"- {esc(item)}" for item in analysis.get("highlights") or []]
     lines += ["", "## 직무 강세·약세"]
     lines += [f"- **{esc(item['name'])} · {item['direction']}** — {esc(item['comment'])}" for item in analysis.get("job_insights") or []]
@@ -275,7 +300,7 @@ def build_methodology(payload: dict, analysis_input: dict | None = None) -> dict
     selected_news = analysis_input.get("news") or []
     dates = sorted(x.get("published_at") for x in selected_news if x.get("published_at"))
     return {
-        "prompt_version": "2026-09-17-structured-brief-v4",
+        "prompt_version": "2026-09-22-change-story-v5",
         "system_prompt": SYSTEM,
         "evidence": {
             "baseline_period": payload.get("baseline_period"),

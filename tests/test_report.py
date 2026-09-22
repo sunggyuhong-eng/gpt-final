@@ -10,6 +10,12 @@ from collector.report import _compact_payload, _hydrate_saved_news, _response_te
 def structured_result(**overrides):
     analysis = {
         "outlook": "채용은 완만하게 증가했다.",
+        "change_story": {
+            "movement": "이전 공고에 신규가 더해지고 종료가 빠져 순증했다.",
+            "drivers": "게임제작과 A사가 증가를 주도했다.",
+            "background": "직접 확인된 채용 확대 발표는 없다.",
+            "implication": "일부 영역에 증가가 집중됐다.",
+        },
         "market_comment": "신규 공고가 종료 공고보다 많았다.",
         "highlights": ["게임제작 수요가 중심이다."],
         "job_insights": [{"name": "게임제작", "direction": "강세", "comment": "제작 수요가 증가했다."}],
@@ -99,7 +105,8 @@ def test_generate_uses_openai_responses_api(tmp_path, monkeypatch):
     assert captured["json"]["text"]["format"]["strict"] is True
     assert captured["headers"]["Authorization"] == "Bearer test-key"
     assert result["provider"] == "openai"
-    assert result["report_schema_version"] == 3
+    assert result["report_schema_version"] == 4
+    assert result["analysis"]["change_story"]["drivers"] == "게임제작과 A사가 증가를 주도했다."
     assert result["generated_at"]
     assert result["analysis"]["outlook"] == "채용은 완만하게 증가했다."
     assert "# 채용은 완만하게 증가했다." in result["markdown"]

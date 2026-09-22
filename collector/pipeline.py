@@ -242,7 +242,7 @@ def run(mode: str = "daily", force: bool = False, now: datetime | None = None) -
                 "period": month,
                 "is_sample": False,
                 "status": "analysis_pending",
-                "report_schema_version": 3,
+                "report_schema_version": 4,
                 "generated_at": None,
                 "analysis": None,
                 "markdown": None,

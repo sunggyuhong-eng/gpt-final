@@ -302,22 +302,53 @@ function Reports({ data }: { data: Data }) {
   const jobMoves = movementRows(stats.by_category || [])
   const companyMoves = movementRows(stats.by_company || [])
   const careerMoves = movementRows(stats.by_career || [])
-  const strongestJob = [...(stats.by_category || [])].filter(row => (row.change || 0) > 0).sort((a, b) => (b.change || 0) - (a.change || 0))[0]
-  const strongestCompany = [...(stats.by_company || [])].filter(row => (row.change || 0) > 0).sort((a, b) => (b.change || 0) - (a.change || 0))[0]
-  const emptyText = '이번 달 해설을 준비하고 있습니다. 통계와 그래프는 정상적으로 확인할 수 있습니다.'
   return <section><PageTitle eyebrow="MONTHLY INSIGHT" title="월간 리포트" description={`${current} 채용시장 분석을 확인하세요.`} />
     <ComparisonControl periods={periods} baseline={baseline} current={current} setBaseline={setBaseline} setCurrent={setCurrent} />
     <div className="report-hero"><div><FileText size={28} /><span>{!officialPair ? '선택 기간 통계 비교' : hasReportContent ? '분석 완료' : report.status === 'complete' ? '생성 결과 확인 필요' : '통계 공개 · 해설 준비 중'}</span><h2>{current.replace('-', '년 ')}월<br />게임업계 채용 리포트</h2><p>{analysis?.outlook || `${baseline} → ${current} 채용 변화를 비교합니다.`}</p>{officialPair && report.generated_at && <small className="report-generated">GPT 생성 {formatDateTime(report.generated_at)}</small>}</div><div className="report-downloads">{officialPair && report.pdf_path && <a className="primary-button" href={report.pdf_path} download><Download size={17} /> PDF 요약본</a>}{officialPair && report.markdown && <a className="outline-button light" href={`reports/${report.period}.md`} download>Markdown <ArrowUpRight size={16} /></a>}</div></div>
     {report.is_sample && <div className="status-strip warning">화면 검증용 예시 리포트입니다.</div>}
     {!officialPair && <div className="data-warning"><AlertCircle size={20} /><div><b>선택한 기간은 통계 비교 모드입니다.</b><p>GPT 시장 해설과 PDF 요약본은 최신 공식 비교 기간인 {report.comparison_label || `${report.baseline_period} → ${report.current_period}`}에만 제공됩니다.</p></div></div>}
-    {analysis && <section className="monthly-conclusion"><div className="conclusion-main"><span>THIS MONTH'S VIEW</span><h2>이번 달의 결론</h2><p>{analysis.outlook}</p></div><div className="conclusion-points"><div><span>가장 강한 직무</span><b>{strongestJob?.name || '확인 필요'}</b><small>{strongestJob ? fmtChange(strongestJob.change) : '비교 데이터 없음'}</small></div><div><span>채용 확대 회사</span><b>{strongestCompany?.name || '확인 필요'}</b><small>{strongestCompany ? fmtChange(strongestCompany.change) : '비교 데이터 없음'}</small></div><div><span>다음 관찰 신호</span><b>{analysis.watchlist[0] || '다음 기간 데이터 확인'}</b></div></div></section>}
-    <div className="report-kpis"><Kpi icon={BriefcaseBusiness} label="전체 공개 공고" value={`${(stats.total_open ?? 0).toLocaleString()}건`} sub={`전월 대비 ${fmtChange(stats.change)}`} primary /><Kpi icon={Sparkles} label="신규 공고" value={`${stats.new_count ?? '-'}건`} sub="이번 기간 새로 확인" /><Kpi icon={Clock3} label="종료 공고" value={`${stats.closed_count ?? '-'}건`} sub="이전 기간 대비 종료" /><Kpi icon={CheckCircle2} label="유지 공고" value={`${stats.maintained_count ?? '-'}건`} sub="두 기간 모두 확인" /></div>
-    <div className="report-overview-grid"><Panel eyebrow="MARKET SIZE" title="전체 공고 비교"><ComparisonBars previous={stats.previous_total} current={stats.total_open} labels={[report.baseline_period || '이전 비교 데이터 없음', report.current_period || report.period]} /></Panel>{analysis ? <article className="analyst-summary"><span>ANALYST VIEW</span><h2>{analysis.outlook}</h2><p>{analysis.market_comment}</p><ul>{analysis.highlights.map(item => <li key={item}>{item}</li>)}</ul></article> : hasLegacyReport ? <article className="analyst-summary legacy"><span>ANALYST VIEW · 이전 형식</span><h2>생성된 시장 해설을 불러왔어요</h2><p>리포트 생성은 완료됐습니다. 아래에서 전체 해설을 확인할 수 있으며, 최신 구조로 다시 생성하면 카드형 분석으로 표시됩니다.</p></article> : report.status === 'complete' ? <Empty icon={AlertCircle} title="생성 결과 형식을 확인해 주세요" text="작업은 완료됐지만 해설 본문이 저장되지 않았습니다. 최신 Generate GPT Report - OpenAI 워크플로를 실행해 주세요." /> : <Empty icon={Sparkles} title="시장 해설을 준비하고 있어요" text={emptyText} />}</div>
+    <MarketChangeStory stats={stats} analysis={analysis} />
+    {hasLegacyReport && <div className="data-warning"><AlertCircle size={20} /><div><b>이전 형식의 해설이 저장되어 있습니다.</b><p>새로운 변화 중심 리포트를 보려면 Generate GPT Report - OpenAI를 한 번 실행해 주세요.</p></div></div>}
     <div className="section-heading compact"><div><span>MOMENTUM CHARTS</span><h2>직무·회사·경력별 증감</h2></div><p>막대 길이는 전월 대비 변화량을 나타냅니다.</p></div>
     <div className="report-chart-grid"><Panel eyebrow="JOB MOMENTUM" title="직무 강세·약세"><DeltaBars rows={jobMoves.slice(0, 10)} /></Panel><Panel eyebrow="COMPANY MOVERS" title="회사별 주요 변동"><DeltaBars rows={companyMoves.slice(0, 10)} /></Panel><Panel eyebrow="CAREER MIX" title="경력별 변화"><DeltaBars rows={careerMoves.slice(0, 8)} /></Panel><Panel eyebrow="EMPLOYMENT MIX" title="고용형태 변화"><DeltaBars rows={movementRows(stats.by_employment_type || []).slice(0, 8)} /></Panel></div>
     {analysis ? <StructuredReport analysis={analysis} data={data} /> : null}
     {hasLegacyReport && report.markdown ? <Panel className="report-panel legacy-report" eyebrow="GENERATED REPORT" title="생성된 시장 해설"><article className="report"><ReportMarkdown markdown={report.markdown} /></article></Panel> : null}
     {officialPair && <ReportMethod report={report} />}
+  </section>
+}
+
+function MarketChangeStory({ stats, analysis }: { stats:ReturnType<typeof compareSnapshots>;analysis:Report['analysis'] }) {
+  const previous = stats.previous_total
+  const current = stats.total_open
+  const created = stats.new_count
+  const closed = stats.closed_count
+  const change = stats.change
+  const story = analysis?.change_story
+  const topCompanies = [...(stats.by_company || [])].filter(row => (row.change || 0) > 0).sort((a, b) => (b.change || 0) - (a.change || 0)).slice(0, 3)
+  const topJobs = [...(stats.by_category || [])].filter(row => (row.change || 0) > 0).sort((a, b) => (b.change || 0) - (a.change || 0)).slice(0, 3)
+  const formatDrivers = (rows:typeof topCompanies) => rows.map(row => `${row.name} ${fmtChange(row.change)}`).join(' · ')
+  const movement = story?.movement || (previous == null || created == null || closed == null
+    ? '비교 가능한 이전 데이터가 쌓이면 신규·종료·순변화가 연결되어 표시됩니다.'
+    : `${previous.toLocaleString()}건에서 신규 ${created.toLocaleString()}건이 더해지고 종료 ${closed.toLocaleString()}건이 빠져 ${current.toLocaleString()}건이 됐습니다.`)
+  const drivers = story?.drivers || [topCompanies.length ? `회사: ${formatDrivers(topCompanies)}` : '', topJobs.length ? `직무: ${formatDrivers(topJobs)}` : ''].filter(Boolean).join(' / ') || '뚜렷한 증가 주도 항목이 확인되지 않았습니다.'
+  const background = story?.background || (analysis ? analysis.market_comment : '공고 증감만으로 원인을 단정하지 않습니다. GPT 리포트를 생성하면 관련 뉴스와 공고를 대조한 배경이 표시됩니다.')
+  const implication = story?.implication || analysis?.watchlist?.[0] || '다음 기간에도 같은 회사와 직무의 증가가 유지되는지 확인해야 일시적 변동과 지속 신호를 구분할 수 있습니다.'
+  const steps = [
+    ['01', '변화가 만들어진 과정', movement],
+    ['02', '변화를 주도한 곳', drivers],
+    ['03', '확인된 배경', background],
+    ['04', '해석과 다음 신호', implication],
+  ]
+  return <section className="market-story">
+    <header><div><span>MARKET CHANGE STORY</span><h2>이번 달 변화는 어떻게 만들어졌나</h2></div><strong className={(change || 0) >= 0 ? 'up' : 'down'}>{fmtChange(change)}</strong></header>
+    <div className="change-equation">
+      <div><span>이전 공고</span><b>{previous == null ? '-' : previous.toLocaleString()}건</b></div><i>+</i>
+      <div className="created"><span>신규</span><b>{created == null ? '-' : created.toLocaleString()}건</b></div><i>−</i>
+      <div className="closed"><span>종료</span><b>{closed == null ? '-' : closed.toLocaleString()}건</b></div><i>=</i>
+      <div className="current"><span>현재 공고</span><b>{current.toLocaleString()}건</b></div>
+    </div>
+    <div className="story-steps">{steps.map(([number, title, text]) => <article key={number}><em>{number}</em><div><h3>{title}</h3><p>{text}</p></div></article>)}</div>
+    {!analysis && <small className="story-status"><Sparkles size={14} /> 수치 기반 변화 과정은 표시됐습니다. 원인과 의미는 GPT 리포트 생성 후 근거와 함께 보강됩니다.</small>}
   </section>
 }
 

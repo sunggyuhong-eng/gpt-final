@@ -215,7 +215,17 @@ def build_report_pdf(report: dict, output_path: Path) -> Path:
     outlook = clean(analysis.get("outlook") or ("게임업계 공개 채용공고는 전월 대비 " + ("증가했습니다." if (stats.get("change") or 0) >= 0 else "감소했습니다.")), 180)
     callout = Table([[Paragraph("이번 달의 결론", s["cover_kicker"]), Paragraph(markup(outlook), s["callout"])]], colWidths=[31*mm, 131*mm])
     callout.setStyle(TableStyle([("BACKGROUND", (0,0), (-1,-1), BLUE_SOFT), ("BOX", (0,0), (-1,-1), .7, colors.HexColor("#CBE2FF")), ("VALIGN", (0,0), (-1,-1), "MIDDLE"), ("LEFTPADDING", (0,0), (-1,-1), 4*mm), ("RIGHTPADDING", (0,0), (-1,-1), 4*mm), ("TOPPADDING", (0,0), (-1,-1), 4*mm), ("BOTTOMPADDING", (0,0), (-1,-1), 4*mm)]))
-    story += [callout, Spacer(1, 9*mm), kpi_table(stats, s), Spacer(1, 9*mm), Paragraph("핵심 포인트", s["h2"])]
+    change_story = analysis.get("change_story") or {}
+    movement = clean(change_story.get("movement") or f"이전 {int(stats.get('previous_total') or 0):,}건에 신규 {int(stats.get('new_count') or 0):,}건이 더해지고 종료 {int(stats.get('closed_count') or 0):,}건이 빠져 현재 {int(stats.get('total_open') or 0):,}건이 됐습니다.", 220)
+    story_rows = [
+        ("변화 구성", movement),
+        ("변화 주도", clean(change_story.get("drivers") or "회사·직무별 증감 표에서 주요 변동을 확인합니다.", 220)),
+        ("확인된 배경", clean(change_story.get("background") or "공고 증감만으로 원인을 단정하지 않습니다.", 220)),
+        ("다음 의미", clean(change_story.get("implication") or "다음 기간에도 같은 변화가 유지되는지 확인합니다.", 220)),
+    ]
+    story_table = Table([[Paragraph(label, s["table_head"]), Paragraph(markup(text), s["table"])] for label, text in story_rows], colWidths=[31*mm, 131*mm])
+    story_table.setStyle(TableStyle([("GRID", (0,0), (-1,-1), .5, LINE), ("BACKGROUND", (0,0), (0,-1), SURFACE), ("VALIGN", (0,0), (-1,-1), "TOP"), ("LEFTPADDING", (0,0), (-1,-1), 3*mm), ("RIGHTPADDING", (0,0), (-1,-1), 3*mm), ("TOPPADDING", (0,0), (-1,-1), 2.5*mm), ("BOTTOMPADDING", (0,0), (-1,-1), 2.5*mm)]))
+    story += [callout, Spacer(1, 6*mm), Paragraph("변화가 만들어진 과정", s["h2"]), story_table, Spacer(1, 7*mm), Paragraph("핵심 포인트", s["h2"])]
     highlights = analysis.get("highlights") or [f"전체 공고는 {int(stats.get('previous_total') or 0):,}건에서 {int(stats.get('total_open') or 0):,}건으로 {fmt_change(stats.get('change'))} 변했습니다.", f"신규 {int(stats.get('new_count') or 0):,}건, 유지 {int(stats.get('maintained_count') or 0):,}건, 종료 {int(stats.get('closed_count') or 0):,}건입니다."]
     for item in highlights[:4]:
         story.append(Paragraph("• " + markup(item, 180), s["body"]))
