@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   workflow_run:
-    workflows: ["Monthly Collection and AI Report", "Daily Collection", "Manual Collection"]
+    workflows: ["Monthly Collection and AI Report", "Daily Collection", "Manual Collection", "Generate GPT Report - OpenAI"]
     types: [completed]
   workflow_dispatch:
 
