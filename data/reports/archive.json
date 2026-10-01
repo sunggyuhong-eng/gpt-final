@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "reports": [
+    {
+      "id": "2026-10-20261001T071040297961Z",
+      "period": "2026-10",
+      "generated_at": "2026-10-01T07:10:40.297961+00:00",
+      "model": "gpt-5-mini",
+      "json_path": "data/reports/archive/2026-10/2026-10-20261001T071040297961Z.json",
+      "markdown_path": "reports/archive/2026-10/2026-10-20261001T071040297961Z.md",
+      "pdf_path": "reports/archive/2026-10/2026-10-20261001T071040297961Z-game-hiring-summary.pdf"
+    },
+    {
+      "id": "2026-09-20260922T074613898886Z",
+      "period": "2026-09",
+      "generated_at": "2026-09-22T07:46:13.898886+00:00",
+      "model": "gpt-5.5",
+      "json_path": "data/reports/archive/2026-09/2026-09-20260922T074613898886Z.json",
+      "markdown_path": "reports/archive/2026-09/2026-09-20260922T074613898886Z.md",
+      "pdf_path": "reports/archive/2026-09/2026-09-20260922T074613898886Z-game-hiring-summary.pdf"
+    }
+  ]
+}
