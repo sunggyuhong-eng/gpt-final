@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   collect-analyze:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     timeout-minutes: 45
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
