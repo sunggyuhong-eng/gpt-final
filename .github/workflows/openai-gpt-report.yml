@@ -7,7 +7,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: openai-report-${{ github.ref }}
+  group: data-write-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
