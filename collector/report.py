@@ -11,6 +11,7 @@ except ModuleNotFoundError:  # 데이터 재계산만 할 때는 API 클라이�
     httpx = None
 
 from collector.pipeline import ROOT, read_json, write_json
+from collector.report_input import MAX_INPUT_BYTES, compact_news, compact_statistics, encode_input, fit_input, input_bytes, select_jobs
 
 SYSTEM = (ROOT / "config" / "report_prompt.md").read_text(encoding="utf-8").strip()
 
@@ -89,7 +90,8 @@ def generate(month: str) -> dict:
     if not payload:
         raise FileNotFoundError(f"분석 데이터 없음: {report_path}")
     _hydrate_saved_news(payload, month)
-    analysis_input = _compact_payload(payload)
+    input_budget = MAX_INPUT_BYTES - len(SYSTEM.encode("utf-8")) - input_bytes(REPORT_SCHEMA)
+    analysis_input = _compact_payload(payload, max_bytes=input_budget)
     payload["methodology"] = build_methodology(payload, analysis_input)
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
@@ -104,7 +106,7 @@ def generate(month: str) -> dict:
             "model": model,
             "reasoning": {"effort": "low"},
             "instructions": SYSTEM,
-            "input": json.dumps(analysis_input, ensure_ascii=False),
+            "input": encode_input(analysis_input),
             "text": {
                 "format": {
                     "type": "json_schema",
@@ -115,8 +117,12 @@ def generate(month: str) -> dict:
             },
     }
     result: dict | None = None
-    for attempt, token_limit in enumerate((25_000, 40_000), start=1):
+    token_limit = 25_000
+    context_retried = False
+    for _ in range(3):
         request_body["max_output_tokens"] = token_limit
+        print(f"GPT 입력: 전체 통계 유지 / 공고 근거 {len(analysis_input['job_examples'])}건 / "
+              f"뉴스 {len(analysis_input['news'])}건 / {input_bytes(analysis_input):,} UTF-8 bytes")
         response = httpx.post(
             "https://api.openai.com/v1/responses",
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
@@ -124,17 +130,30 @@ def generate(month: str) -> dict:
             timeout=900,
         )
         if not response.is_success:
+            error = {}
             try:
-                message = response.json().get("error", {}).get("message") or response.text
+                error = response.json().get("error") or {}
+                message = error.get("message") or response.text
             except ValueError:
                 message = response.text
+            if response.status_code == 400 and not context_retried and _is_context_error(error, message):
+                context_retried = True
+                # The rejected request is never retried unchanged.
+                analysis_input = _compact_payload(payload, max_bytes=input_budget // 2)
+                if input_bytes(analysis_input) >= len(request_body["input"].encode("utf-8")):
+                    raise RuntimeError("전체 통계를 유지하면서 입력을 더 줄일 수 없습니다. OPENAI_MODEL 설정을 확인하세요.")
+                payload["methodology"] = build_methodology(payload, analysis_input)
+                request_body["input"] = encode_input(analysis_input)
+                print("GPT 입력 한도 초과: 전체 통계는 유지하고 근거를 절반 예산으로 줄여 한 번 재시도합니다.")
+                continue
             request_id = response.headers.get("x-request-id") or "없음"
             raise RuntimeError(f"OpenAI API 오류 {response.status_code}: {message} (request_id: {request_id})")
         result = response.json()
         if result.get("status") != "incomplete":
             break
         reason = (result.get("incomplete_details") or {}).get("reason") or "알 수 없음"
-        if reason == "max_output_tokens" and attempt == 1:
+        if reason == "max_output_tokens" and token_limit == 25_000:
+            token_limit = 40_000
             print("GPT 출력 한도에 도달해 더 큰 한도로 한 번 재시도합니다.")
             continue
         raise RuntimeError(f"GPT 리포트 출력이 완료되기 전에 중단되었습니다: {reason}")
@@ -147,7 +166,8 @@ def generate(month: str) -> dict:
         analysis = json.loads(response_text)
     except json.JSONDecodeError as exc:
         raise RuntimeError("GPT가 올바른 구조의 리포트를 반환하지 않았습니다.") from exc
-    analysis = _sanitize_analysis(analysis, payload)
+    # Citations must have been in the actual, possibly reduced model input.
+    analysis = _sanitize_analysis(analysis, analysis_input)
     markdown = _analysis_markdown(analysis, payload)
     payload.update({
         "status": "complete",
@@ -165,6 +185,12 @@ def generate(month: str) -> dict:
     reports.mkdir(exist_ok=True)
     (reports / f"{month}.md").write_text(markdown, encoding="utf-8")
     return payload
+
+
+def _is_context_error(error: dict, message: str) -> bool:
+    return error.get("code") == "context_length_exceeded" or any(
+        text in message.lower() for text in ("context window", "context length", "too many input tokens")
+    )
 
 
 def _sanitize_analysis(analysis: dict, payload: dict) -> dict:
@@ -300,7 +326,7 @@ def build_methodology(payload: dict, analysis_input: dict | None = None) -> dict
     selected_news = analysis_input.get("news") or []
     dates = sorted(x.get("published_at") for x in selected_news if x.get("published_at"))
     return {
-        "prompt_version": "2026-09-22-change-story-v5",
+        "prompt_version": "2026-10-01-bounded-evidence-v6",
         "system_prompt": SYSTEM,
         "evidence": {
             "baseline_period": payload.get("baseline_period"),
@@ -308,6 +334,9 @@ def build_methodology(payload: dict, analysis_input: dict | None = None) -> dict
             "previous_open_jobs": stats.get("previous_total"),
             "current_open_jobs": stats.get("total_open"),
             "job_examples_sent": len(analysis_input.get("job_examples") or []),
+            "job_examples_available": len(payload.get("job_examples") or []),
+            "input_bytes": input_bytes(analysis_input),
+            "input_budget_bytes": (analysis_input.get("evidence_selection") or {}).get("input_budget_bytes"),
             "news_candidates": len(payload.get("news") or []),
             "news_sent_to_model": len(selected_news),
             "news_date_from": dates[0] if dates else None,
@@ -316,29 +345,37 @@ def build_methodology(payload: dict, analysis_input: dict | None = None) -> dict
         "rules": [
             "공고 고유번호로 신규·유지·종료를 판정",
             "게임잡 원문 소분류를 설정 파일의 대분류로 매핑",
-            "채용 변화가 큰 회사 및 프로젝트·경영 이슈 뉴스를 우선 선택",
+            "전체 공고 기준 집계를 보존하고, 회사·직무·제공된 증감 상태별 공고 근거는 최대 150건을 순환 선택",
+            "채용 변화가 큰 회사 및 프로젝트·경영 이슈 뉴스 최대 50건을 우선 선택",
+            "입력 크기가 예산을 넘으면 근거만 추가 축소하며 통계 수치는 삭제하지 않음",
             "직접 근거·관련 가능성·근거 부족을 구분하고 인과를 단정하지 않음",
         ],
-        "input_description": "전체 공고와 전체 뉴스의 메타데이터·원문 링크, 회사·직무·경력·지역·고용형태 전체 집계",
+        "input_description": "전체 공고 기준 회사·직무·경력·지역·고용형태 집계 + 입력 예산 내 선별한 공고·뉴스 근거. 근거 표본으로 전체 수치를 재계산하지 않으며 원본 공고·뉴스는 모두 보존합니다.",
     }
 
 
-def _compact_payload(payload: dict) -> dict:
-    """고유번호 목록만 제거하고 모든 집계·공고·뉴스 근거를 모델에 전달한다."""
-    stats = dict(payload.get("statistics") or {})
-    for key in ("new_ids", "maintained_ids", "closed_ids"):
-        stats.pop(key, None)
-    return {
+def _compact_payload(payload: dict, max_bytes: int = MAX_INPUT_BYTES) -> dict:
+    """전체 통계는 보존하고 해설용 근거만 명시적인 입력 예산에 맞춘다."""
+    stats = payload.get("statistics") or {}
+    jobs = payload.get("job_examples") or []
+    news = payload.get("news") or []
+    return fit_input({
         "period": payload.get("period"),
-        "statistics": stats,
-        "job_examples": payload.get("job_examples") or [],
-        "news": _select_relevant_news(payload.get("news") or [], stats),
+        "baseline_period": payload.get("baseline_period") or stats.get("baseline_period"),
+        "statistics": compact_statistics(stats),
+        "job_examples": select_jobs(jobs, stats),
+        "news": _select_relevant_news(news, stats),
+        "evidence_selection": {
+            "jobs_available": len(jobs), "news_available": len(news),
+            "statistics_scope": "전체 공고로 계산한 통계. columns/rows는 열 이름과 값의 무손실 표 표현.",
+            "rule": "근거는 선별본이므로 전체로 오인하거나 여기서 총량·증감을 다시 계산하지 않는다. 미제공 원문은 읽었다고 주장하지 않는다.",
+        },
         "interpretation_rule": {
             "confirmed": "기사에 채용 확대·축소가 직접 명시되고 데이터 변화도 일치",
             "possible": "회사·프로젝트와 시점은 일치하지만 인과관계는 확인되지 않음",
             "unknown": "연결 근거가 부족하여 추가 확인 필요",
         },
-    }
+    }, max_bytes)
 
 
 def _select_relevant_news(news: list[dict], stats: dict) -> list[dict]:
@@ -366,7 +403,4 @@ def _select_relevant_news(news: list[dict], stats: dict) -> list[dict]:
         return company_score + issue_score, item.get("published_at") or ""
 
     selected = sorted(news, key=score, reverse=True)
-    return [
-        {key: item.get(key) for key in ("source", "title", "url", "published_at", "summary", "issue_type")}
-        for item in selected
-    ]
+    return compact_news(selected)

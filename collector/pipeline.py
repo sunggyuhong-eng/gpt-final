@@ -214,12 +214,13 @@ def run(mode: str = "daily", force: bool = False, now: datetime | None = None) -
         write_json(ROOT / "data" / "collection-status.json", status)
         return status
     daily_path = ROOT / "data" / "daily" / f"{day}.json"
-    if daily_path.exists() and not force:
+    if daily_path.exists() and not force and mode == "daily":
         status["message"] = "오늘 스냅샷이 이미 존재하여 건너뛰었습니다. force=true로 재수집할 수 있습니다."
         write_json(ROOT / "data" / "collection-status.json", status)
         return status
     snapshot = {"schema_version": 1, "period": day, "collected_at": status["finished_at"], "is_sample": False, "jobs": jobs}
-    write_json(daily_path, snapshot)
+    if not daily_path.exists() or force:
+        write_json(daily_path, snapshot)
     write_json(ROOT / "data" / "latest.json", snapshot)
     update_category_history()
     if mode == "monthly":
@@ -227,6 +228,10 @@ def run(mode: str = "daily", force: bool = False, now: datetime | None = None) -
         if monthly_path.exists() and not force:
             status["message"] = "이번 달 공식 스냅샷이 이미 존재하여 보존했습니다. 수동 force=true로 교체할 수 있습니다."
         else:
+            # Keep completed monthly analyses/PDFs before force or period changes.
+            from collector.report_archive import archive_report
+            archive_report(read_json(ROOT / "data" / "reports" / f"{month}.json", {}), ROOT)
+            archive_report(read_json(ROOT / "data" / "reports" / "latest.json", {}), ROOT)
             monthly = dict(snapshot, period=month)
             write_json(monthly_path, monthly)
             prev_path = previous_month_file(month)
@@ -238,8 +243,10 @@ def run(mode: str = "daily", force: bool = False, now: datetime | None = None) -
                 for job in jobs
             ]
             write_json(ROOT / "data" / "news" / f"{month}.json", {"period": month, "collected_at": status["finished_at"], "items": news})
-            write_json(ROOT / "data" / "reports" / f"{month}.json", {
+            pending_report = {
                 "period": month,
+                "current_period": month,
+                "baseline_period": previous_snapshot.get("period") if previous is not None else None,
                 "is_sample": False,
                 "status": "analysis_pending",
                 "report_schema_version": 4,
@@ -250,8 +257,11 @@ def run(mode: str = "daily", force: bool = False, now: datetime | None = None) -
                 "statistics": stats,
                 "job_examples": job_examples,
                 "news": news,
-            })
+            }
+            write_json(ROOT / "data" / "reports" / f"{month}.json", pending_report)
+            write_json(ROOT / "data" / "reports" / "latest.json", pending_report)
             update_history(month, stats)
+            update_category_history()
     write_json(ROOT / "data" / "collection-status.json", status)
     return status
 

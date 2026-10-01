@@ -37,7 +37,7 @@ def test_report_payload_removes_large_id_lists():
     })
     assert "new_ids" not in compact["statistics"]
     assert len(compact["statistics"]["by_company"]) == 110
-    assert len(compact["job_examples"]) == 155
+    assert len(compact["job_examples"]) == 150
 
 
 def test_company_related_news_is_prioritized():
@@ -49,10 +49,10 @@ def test_company_related_news_is_prioritized():
     assert _select_relevant_news(news, stats)[0]["title"] == "테스트게임즈 신작 출시"
 
 
-def test_all_news_are_preserved_after_prioritizing():
+def test_news_evidence_is_bounded_after_prioritizing():
     stats = {"by_company": []}
     news = [{"title": f"뉴스 {i}", "published_at": "2026-09-15", "issue_type": "기타"} for i in range(135)]
-    assert len(_select_relevant_news(news, stats)) == 135
+    assert len(_select_relevant_news(news, stats)) == 50
 
 
 def test_empty_report_news_are_restored_from_saved_month(tmp_path, monkeypatch):
