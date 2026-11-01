@@ -3286,5 +3286,429 @@
     "company_type": "파견·채용대행",
     "representative_game": "-",
     "main_business": "인력공급대행, 인력파견및업무제공용역/헤드헌팅 및 유료직업소개"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=51261242": {
+    "logo_url": "https://www.gamejob.co.kr/Images/booth/B_logo/Logo_None.gif?v=20240502",
+    "established_year": "2026년",
+    "employee_count": "4 명",
+    "company_type": "벤처기업",
+    "representative_game": "-",
+    "main_business": "모바일 게임 개발 및 퍼블리싱"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=34530939": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2022/10/GJ_CoLogo_34530939.jpg?638966579130000000",
+    "established_year": "2016년",
+    "employee_count": "24 명",
+    "company_type": "중소기업(300명미만)",
+    "representative_game": "머지스위츠,킹덤워즈,쥬얼스템플,후르츠포레스트,어비스외30종",
+    "main_business": "모바일게임"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=20535930": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2017/2/GJ_Co_dream0901.jpg?639288109130000000",
+    "established_year": "2014년",
+    "employee_count": "12 명",
+    "company_type": "중소기업(300명미만)",
+    "representative_game": ".",
+    "main_business": "모바일 게임 퍼블리셔"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=36665170": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2022/2/GJ_CoLogo_36665170.png?639289701640000000",
+    "established_year": "2017년",
+    "employee_count": "23 명",
+    "company_type": "중소기업(300명미만)",
+    "representative_game": "모티피지오",
+    "main_business": "근골격 체형분석의 기준, 모티피지오"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=11532192": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2011/5/GJ_Co_b1093317.jpg?639288803510000000",
+    "established_year": "2009년",
+    "employee_count": "14 명",
+    "company_type": "벤처기업",
+    "representative_game": "스크린골프",
+    "main_business": "스포츠게임개발"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=51027110": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2026/4/GJ_CoLogo_51027110.png?639287907310000000",
+    "established_year": "2026년",
+    "employee_count": "4 명",
+    "company_type": "중소기업(300명미만)",
+    "representative_game": "C.C.C.: Contract Cleaning / Special Cleaning",
+    "main_business": "게임 개발"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=36525355": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2022/1/GJ_CoLogo_36525355.png?638203461320000000",
+    "established_year": "2019년",
+    "employee_count": "20 명",
+    "company_type": "중소기업(300명미만)",
+    "representative_game": "-",
+    "main_business": "게임 컨텐츠 개발, 게임포털."
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=52852258": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2026/10/GJ_CoLogo_52852258.png?639288138230000000",
+    "established_year": "2026년",
+    "employee_count": "13 명",
+    "company_type": "중소기업(300명미만)",
+    "representative_game": "-",
+    "main_business": "게임"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=27977747": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2020/1/GJ_CoLogo_27977747.jpg?639288955230000000",
+    "established_year": "2019년",
+    "employee_count": "45 명",
+    "company_type": "벤처기업",
+    "representative_game": "놀러와마이홈, 코코마인, 걸글로브, 창밖고양이, WITH 외",
+    "main_business": "모바일 게임 개발, 제작 및 퍼블리싱"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=37067903": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2025/4/GJ_CoLogo_37067903.jpg?638805101560000000",
+    "established_year": "2019년",
+    "employee_count": "12 명",
+    "company_type": "벤처기업",
+    "representative_game": "좀바이러스(ZOMVIRUS), Wild West, BOUNCE HERO",
+    "main_business": "VR게임, 모바일게임 개발, 메타버스 콘텐츠 제작"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=26031946": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2018/11/GJ_Co_royalcrow.jpg?638869000750000000",
+    "established_year": "2018년",
+    "employee_count": "80 명",
+    "company_type": "중소기업(300명미만)",
+    "representative_game": "-",
+    "main_business": "게임"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=52722928": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2026/10/GJ_CoLogo_52722928.png?639275815300000000",
+    "established_year": "2017년",
+    "employee_count": "20 명",
+    "company_type": "벤처기업",
+    "representative_game": "-",
+    "main_business": "음악 엔터테인먼트 솔루션"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=32408614": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2020/9/GJ_CoLogo_32408614.png?638894733590000000",
+    "established_year": "2014년",
+    "employee_count": "108 명",
+    "company_type": "중소기업(300명미만)",
+    "representative_game": "-",
+    "main_business": "고객컨설팅, 프랜차이즈, IT"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=49063272": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2026/10/GJ_CoLogo_49063272.png?639288022800000000",
+    "established_year": "2018년",
+    "employee_count": "27 명",
+    "company_type": "중소기업(300명미만)",
+    "representative_game": "-",
+    "main_business": "응용 소프트웨어 개발 및 공급업, 광고 대행업, 번역 및 통역 서비스업, 기타 전문 서비스"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=47021296": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2025/3/GJ_CoLogo_47021296.png?638773885040000000",
+    "established_year": "2023년",
+    "employee_count": "6 명",
+    "company_type": "벤처기업",
+    "representative_game": "-",
+    "main_business": "게임개발"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=30895233": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2020/3/GJ_CoLogo_30895233.jpg?638327276200000000",
+    "established_year": "2020년",
+    "employee_count": "47 명",
+    "company_type": "중소기업(300명미만)",
+    "representative_game": "몬스터 슈퍼 리그",
+    "main_business": "모바일게임(몬스터 슈퍼 리그 및 아기상어 캐주얼 게임 등)"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=52875633": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2026/10/GJ_CoLogo_52875633.png?639288097040000000",
+    "established_year": "2021년",
+    "employee_count": "184 명",
+    "company_type": "중소기업(300명미만)",
+    "representative_game": "-",
+    "main_business": "응용 소프트웨어"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=40317919": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2024/9/GJ_CoLogo_40317919.jpg?638792064250000000",
+    "established_year": "2018년",
+    "employee_count": "30 명",
+    "company_type": "중견기업(300명이상)",
+    "representative_game": "게임원화,게임아트웍,게임기획,프로그램,3D그래픽",
+    "main_business": "교육서비스, 컴퓨터교육, IT교육, 디자인교육, 취업교육"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=41905936": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2026/8/GJ_CoLogo_41905936.png?639219915790000000",
+    "established_year": "2023년",
+    "employee_count": "13 명",
+    "company_type": "벤처기업",
+    "representative_game": "Let In Diner / 합성데이터 생성기 CEN / 그 외 40건 이상",
+    "main_business": "유니티, 언리얼을 통한 3D 프로그램 및 게임 컨텐츠 제작"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=40435121": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2023/4/GJ_CoLogo_40435121.jpg?639106328110000000",
+    "established_year": "2006년",
+    "employee_count": "28 명",
+    "company_type": "중소기업(300명미만)",
+    "representative_game": "-",
+    "main_business": "HTML5 게임 개발 및 라이브커머스 운영"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=32459219": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2020/10/GJ_CoLogo_32459219.png?639282688490000000",
+    "established_year": "2011년",
+    "employee_count": "11 명",
+    "company_type": "벤처기업",
+    "representative_game": "엘도라도,황금을지켜라,오광전맞고,에어포스",
+    "main_business": "모바일게임, OTT게임, TV게임"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=50907809": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2026/3/GJ_CoLogo_50907809.jpg?639094537100000000",
+    "established_year": "-",
+    "employee_count": "-",
+    "company_type": "중소기업(300명미만)",
+    "representative_game": "-",
+    "main_business": "-"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=42282606": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2024/7/GJ_CoLogo_42282606.png?639281967530000000",
+    "established_year": "2023년",
+    "employee_count": "25 명",
+    "company_type": "중소기업(300명미만)",
+    "representative_game": "Project DK, 관우키우기, 던전기사 키우기, 발키리 히어로 키우기, 데몬헌터 키우기",
+    "main_business": "게임소프트웨어 개발 및 유통업"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=11534419": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2017/4/GJ_Co_scagame.jpg?638797160690000000",
+    "established_year": "2006년",
+    "employee_count": "737 명",
+    "company_type": "중견기업(300명이상)",
+    "representative_game": "-",
+    "main_business": "게임개발관련 컴퓨터 교육"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=19441619": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2020/11/GJ_CoLogo_19441619.jpg?639008066040000000",
+    "established_year": "2016년",
+    "employee_count": "14 명",
+    "company_type": "벤처기업",
+    "representative_game": "레전다이노",
+    "main_business": "모바일게임 컨텐츠 개발"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=42728903": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2023/12/GJ_CoLogo_42728903.png?639280950000000000",
+    "established_year": "2023년",
+    "employee_count": "11 명",
+    "company_type": "벤처기업",
+    "representative_game": "Rush Attack ,Heli Hog Hunt, Ocean Clash, Fire Zone",
+    "main_business": "모바일 게임 개발 및 서비스"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=13669595": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2024/8/GJ_CoLogo_13669595.jpg?639217139730000000",
+    "established_year": "2013년",
+    "employee_count": "823 명",
+    "company_type": "대기업",
+    "representative_game": "한게임 포커/맞고, 다키스트데이즈, 프렌즈팝, 어비스디아 등",
+    "main_business": "한게임, 소프트웨어 개발, 공급, 온라인정보, 전자금융/소프트웨어"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=51662674": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2026/6/GJ_CoLogo_51662674.png?639167132780000000",
+    "established_year": "2014년",
+    "employee_count": "13 명",
+    "company_type": "중소기업(300명미만)",
+    "representative_game": "-",
+    "main_business": "디지털콘텐츠개발, 미디어아트전시, 인터랙티브콘텐츠"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=41018016": {
+    "logo_url": "https://www.gamejob.co.kr/Images/booth/B_logo/Logo_None.gif?v=20240502",
+    "established_year": "2005년",
+    "employee_count": "26 명",
+    "company_type": "중소기업(300명미만)",
+    "representative_game": "-",
+    "main_business": "안전체험시설 제조업"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=40219310": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2023/3/GJ_CoLogo_40219310.png?639265386460000000",
+    "established_year": "2020년",
+    "employee_count": "12 명",
+    "company_type": "중소기업(300명미만)",
+    "representative_game": "WaterPark Boys, Awesome Park : Idle Game",
+    "main_business": "모바일 게임 개발 및 공급"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=48944643": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2025/9/GJ_CoLogo_48944643.png?639165274730000000",
+    "established_year": "2018년",
+    "employee_count": "15 명",
+    "company_type": "중소기업(300명미만)",
+    "representative_game": "-",
+    "main_business": "모션캡쳐/ 3D콘텐츠 제작"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=34583212": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2026/4/GJ_CoLogo_34583212.png?639234431990000000",
+    "established_year": "2016년",
+    "employee_count": "700 명",
+    "company_type": "중견기업(300명이상)",
+    "representative_game": "스마일게이트 스토브 플랫폼 / 퍼블리싱",
+    "main_business": "C2C 컨텐츠 공급 및 공유/확산 플랫폼 개발 및 퍼블리싱"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=52722523": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2026/10/GJ_CoLogo_52722523.png?639276780980000000",
+    "established_year": "2026년",
+    "employee_count": "3 명",
+    "company_type": "중소기업(300명미만)",
+    "representative_game": "던전 세틀러즈",
+    "main_business": "스팀 PC 게임 개발"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=52763180": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2026/10/GJ_CoLogo_52763180.png?639275048170000000",
+    "established_year": "2026년",
+    "employee_count": "10 명",
+    "company_type": "중소기업(300명미만)",
+    "representative_game": "머지캣 : 캣토피아 퍼즐",
+    "main_business": "모바일 게임 개발 및 서비스"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=41653558": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2023/10/GJ_CoLogo_41653558.png?639275098460000000",
+    "established_year": "2023년",
+    "employee_count": "26 명",
+    "company_type": "중소기업(300명미만)",
+    "representative_game": "천년어게인, 라테일플러스",
+    "main_business": "모바일 게임 퍼블리싱"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=50203038": {
+    "logo_url": "https://www.gamejob.co.kr/Images/booth/B_logo/Logo_None.gif?v=20240502",
+    "established_year": "2025년",
+    "employee_count": "4 명",
+    "company_type": "벤처기업",
+    "representative_game": "-",
+    "main_business": "모바일 기반 실사 메타버스형 SNS 앱"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=24062762": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2022/4/GJ_CoLogo_24062762.jpg?638206255360000000",
+    "established_year": "2017년",
+    "employee_count": "1400 명",
+    "company_type": "중견기업(300명이상)",
+    "representative_game": "-",
+    "main_business": "교육"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=27609714": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2024/5/GJ_CoLogo_27609714.png?639270795980000000",
+    "established_year": "2016년",
+    "employee_count": "5 명",
+    "company_type": "벤처기업",
+    "representative_game": "SENARA the Secrament, SAVE,",
+    "main_business": "PC콘솔게임개발, 모바일게임개발, VR시뮬레이션개발"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=37029321": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2026/5/GJ_CoLogo_37029321.png?639166089870000000",
+    "established_year": "2019년",
+    "employee_count": "860 명",
+    "company_type": "대기업 계열사·자회사",
+    "representative_game": "파트너사 주요 게임 : 아키에이지워, 패스오브엑자일, 배틀그라운드, 스톰게이트 등",
+    "main_business": "콘텐츠 제작, 디자인/상세페이지 제작, 데이터 관리 및 모니터링, 모빌리티 CS(고객상담/"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=11529098": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2016/2/GJ_Co_lunosoft.jpg?639099586190000000",
+    "established_year": "2006년",
+    "employee_count": "20 명",
+    "company_type": "벤처기업",
+    "representative_game": "디즈니틀린그림찾기, 연애혁명, 프렌즈젬 외 다수",
+    "main_business": "모바일 게임 개발 및 퍼블리싱"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=49007155": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2025/9/GJ_CoLogo_49007155.jpg?638925948830000000",
+    "established_year": "2015년",
+    "employee_count": "61 명",
+    "company_type": "벤처기업",
+    "representative_game": "-",
+    "main_business": "e스포츠 교육사업, e스포츠리그"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=50951313": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2026/6/GJ_CoLogo_50951313.png?639268312510000000",
+    "established_year": "2023년",
+    "employee_count": "10 명",
+    "company_type": "중소기업(300명미만)",
+    "representative_game": "TESSERACT",
+    "main_business": "피지컬 AI 로봇 시뮬레이션"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=45597662": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2024/10/GJ_CoLogo_45597662.jpg?639200912280000000",
+    "established_year": "2024년",
+    "employee_count": "12 명",
+    "company_type": "벤처기업",
+    "representative_game": "와인드 업 데드맨, 메트로 블로썸",
+    "main_business": "스토리 중심의 CRPG 개발"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=39487408": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2026/8/GJ_CoLogo_39487408.jpg?639218382420000000",
+    "established_year": "2022년",
+    "employee_count": "20 명",
+    "company_type": "벤처기업",
+    "representative_game": "-",
+    "main_business": "AI 엔터테인먼트 OS 및 인터랙티브 콘텐츠·서비스 개발"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=39807905": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2024/7/GJ_CoLogo_39807905.jpg?639265408920000000",
+    "established_year": "2020년",
+    "employee_count": "8 명",
+    "company_type": "벤처기업",
+    "representative_game": "-",
+    "main_business": "그래픽 개발 및 공급"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=51981821": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2026/7/GJ_CoLogo_51981821.png?639204550410000000",
+    "established_year": "2023년",
+    "employee_count": "-",
+    "company_type": "개인사업자",
+    "representative_game": "비비도어",
+    "main_business": "오타쿠 게임 개발"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=50102860": {
+    "logo_url": "https://www.gamejob.co.kr/Images/booth/B_logo/Logo_None.gif?v=20240502",
+    "established_year": "2025년",
+    "employee_count": "1 명",
+    "company_type": "개인사업자",
+    "representative_game": "-",
+    "main_business": "소프트웨어 개발"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=47463122": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2025/4/GJ_CoLogo_47463122.jpg?638815311950000000",
+    "established_year": "2020년",
+    "employee_count": "20 명",
+    "company_type": "학교·교육·연구기관",
+    "representative_game": "-",
+    "main_business": "게임개발, 웹툰/웹소설 교육"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=15288258": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2022/11/GJ_CoLogo_15288258.png?639100585400000000",
+    "established_year": "2014년",
+    "employee_count": "400 명",
+    "company_type": "외국계 기업",
+    "representative_game": "GGPoker",
+    "main_business": "소프트웨어 개발 및 공급"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=22707922": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2018/1/GJ_Co_nurimaru2.jpg?638404923290000000",
+    "established_year": "2011년",
+    "employee_count": "17 명",
+    "company_type": "학교·교육·연구기관",
+    "representative_game": "-",
+    "main_business": "게임그래픽 직업 훈련, 프로게이머 양성"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=52635498": {
+    "logo_url": "https://www.gamejob.co.kr/Images/booth/B_logo/Logo_None.gif?v=20240502",
+    "established_year": "-",
+    "employee_count": "-",
+    "company_type": "개인사업자",
+    "representative_game": "-",
+    "main_business": "-"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=36944367": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2024/4/GJ_CoLogo_36944367.png?639123074990000000",
+    "established_year": "2020년",
+    "employee_count": "25 명",
+    "company_type": "학교·교육·연구기관",
+    "representative_game": "-",
+    "main_business": "게임아카데미/게임원화/게임일러스트"
+  },
+  "https://www.gamejob.co.kr/Company/Detail?tabcode=1&M=16784323": {
+    "logo_url": "http://file.gamejob.co.kr/net/Corp/CoImage/LogoView?FN=2021/3/GJ_CoLogo_16784323.PNG?637806201830000000",
+    "established_year": "1992년",
+    "employee_count": "32 명",
+    "company_type": "학교·교육·연구기관",
+    "representative_game": "-",
+    "main_business": "노동부 실업자직업훈련, 계좌제훈련, 재직자훈련"
   }
 }
