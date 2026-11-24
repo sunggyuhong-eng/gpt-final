@@ -1,13 +1,13 @@
 {
-  "started_at": "2026-11-23T16:03:23.143096+09:00",
+  "started_at": "2026-11-24T18:28:22.669226+09:00",
   "sources": [
     {
       "name": "게임잡",
       "status": "success",
-      "count": 1339
+      "count": 1352
     }
   ],
   "is_sample": false,
-  "finished_at": "2026-11-23T16:04:45.227138+09:00",
+  "finished_at": "2026-11-24T18:29:46.949939+09:00",
   "success": true
 }
